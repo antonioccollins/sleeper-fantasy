@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TradeBlock share artwork</title>
+<style>
+* { box-sizing: border-box; }
+body { width: 1200px; height: 630px; margin: 0; overflow: hidden; background: #090a10; color: #f8f5ff; font-family: Arial, Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+.canvas { position: relative; width: 100%; height: 100%; padding: 62px 66px; background: radial-gradient(ellipse at 85% 48%, #28183888, transparent 52%); }
+.brand { display: flex; align-items: center; gap: 18px; font-size: 47px; font-weight: 700; letter-spacing: -2px; }
+.brand svg { width: 48px; height: 48px; color: #a15bff; }
+h1 { position: relative; z-index: 1; margin: 66px 0 30px; font-size: 76px; line-height: 1.06; letter-spacing: -3.8px; font-weight: 700; }
+h1 span { color: #bb8bef; }
+.league { position: absolute; bottom: 65px; left: 68px; display: flex; align-items: center; gap: 10px; font-size: 16px; color: #a7a0b7; letter-spacing: 2px; font-weight: 500; }
+.league svg { width: 19px; height: 19px; fill: none; stroke: #ac81d6; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.stack { position: absolute; top: 77px; right: 90px; width: 330px; height: 464px; transform: rotate(7deg); }
+.stack::before, .stack::after { content: ''; position: absolute; inset: 0; border: 1px solid #554765; border-radius: 34px; background: #151420; transform: rotate(-10deg) translate(-17px, 4px); }
+.stack::before { transform: rotate(-18deg) translate(-27px, 3px); border-color: #342b46; background: #101018; }
+.card { position: relative; z-index: 1; width: 100%; height: 100%; border-radius: 34px; border: 1px solid #63546e; background: #15131d; box-shadow: 0 18px 40px #0006; padding: 26px; text-align: center; }
+.card-top { display: flex; justify-content: space-between; align-items: center; color: #a9a0b9; font-size: 11px; font-weight: 600; letter-spacing: 1.9px; }
+.card-top svg { width: 19px; height: 19px; fill: none; stroke: #a884ce; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.metal { --light: #eee0ff; --mid: #a374d6; --deep: #482468; position: relative; isolation: isolate; display: grid; place-items: center; width: 152px; height: 152px; margin: 37px auto 25px; border: 1px solid #d8b9f0; border-radius: 50%; background: conic-gradient(from 30deg, var(--deep), var(--light) 12%, var(--mid) 24%, var(--deep) 43%, var(--light) 58%, var(--mid) 72%, var(--light) 85%, var(--deep)); box-shadow: 0 9px 20px #0006, inset 0 2px 2px #ffffffb3; }
+.metal::before { content: ''; position: absolute; z-index: -1; inset: 6px; border-radius: inherit; background: radial-gradient(ellipse at 30% 12%, #ffffffc9, #ffffff00 38%), radial-gradient(ellipse at 78% 88%, var(--light), #ffffff00 44%), linear-gradient(155deg, var(--light), var(--mid) 25%, var(--deep) 48%, var(--mid) 52%, var(--light) 69%, var(--mid) 83%, var(--deep)); box-shadow: inset 0 2px 3px #fff9, inset 0 -3px 7px #0008; }
+.metal::after { content: ''; position: absolute; inset: 10px 22px 40%; border-top: 2px solid #ffffffa6; border-radius: 50%; transform: rotate(-28deg); }
+.metal svg { width: 66px; height: 66px; fill: #faf1ff; stroke: #faf1ff; stroke-width: .5; filter: drop-shadow(0 3px 3px #382142c9); }
+.match { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+.match-sub { margin-top: 9px; color: #a197b0; font-size: 13px; }
+.actions { display: flex; justify-content: center; gap: 19px; margin-top: 29px; }
+.actions span { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; }
+.pass { background: #302027; border: 1px solid #ae6573; color: #eca6ab; }
+.like { background: #1d2b22; border: 1px solid #78a963; color: #b8e895; }
+.actions svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.like svg { fill: currentColor; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2h7l-3 8h6L5 22H1l4-10H1Zm11 0h7l-5 20h-7l4-10h-5Z" fill="currentColor"/></svg>TradeBlock</div>
+  <h1>Swipe. Match.<br><span>Trade.</span></h1>
+  <div class="league"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v7a5 5 0 0 1-10 0ZM7 5H3v3a4 4 0 0 0 4 4M17 5h4v3a4 4 0 0 1-4 4M12 15v5M8 21h8"/></svg>SUPER BOWL BOUND</div>
+  <div class="stack"><div class="card">
+    <div class="card-top">MUTUAL INTEREST<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4"/></svg></div>
+    <div class="metal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg></div>
+    <div class="match">It’s a match!</div><div class="match-sub">A trade you both want.</div>
+    <div class="actions"><span class="pass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></span><span class="like"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg></span></div>
+  </div></div>
+</div>
+</body>
+</html>
