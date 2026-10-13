@@ -341,7 +341,7 @@ body.discover-mode .empty-state { min-height: 420px; }
   .nfl-logo { width: 27px; height: 27px; }
 }
 @media (max-height: 720px) and (max-width: 760px) {
-  .swipe-actions { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 3; margin-top: 12px; padding: 10px 0 6px; background: #090b10f5; }
+  .swipe-actions { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 3; margin-top: 12px; padding: 10px 0 6px; background: transparent; }
   .action-circle { width: 56px; height: 56px; }
   .action-control { gap: 6px; }
 }
