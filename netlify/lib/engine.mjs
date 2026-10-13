@@ -9,7 +9,9 @@ const round = (value, digits = 1) => Number(value.toFixed(digits));
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const combinations = (items) => items.flatMap((a, i) => items.slice(i + 1).map(b => [a, b]));
 
-export const ENGINE_VERSION = 'fantasypros-ros-v1';
+export const ENGINE_VERSION = 'fantasypros-ros-v2';
+// Expanding the deck must not change existing trade IDs or clear pending likes.
+const PROPOSAL_VERSION = 'fantasypros-ros-v1';
 
 // Rankings are ordinal, not FantasyPros trade prices or point projections.
 // A convex curve protects elite assets from stacks of replaceable players.
@@ -54,7 +56,7 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
       manager: owner.display_name || 'Unclaimed', wins: r.settings?.wins || 0, losses: r.settings?.losses || 0, ties: r.settings?.ties || 0,
       players: [...(r.players || [])].sort(), reserve: r.reserve || []};
   }).sort((a, b) => a.id - b.id);
-  const epoch = digest([ENGINE_VERSION, teams.map(t => [t.id, t.owner_id, t.players, t.reserve])]).slice(0, 16);
+  const epoch = digest([PROPOSAL_VERSION, teams.map(t => [t.id, t.owner_id, t.players, t.reserve])]).slice(0, 16);
   const proposals = [];
   const tradable = t => t.players.filter(id => positions.has(ratings[id].position) && !t.reserve.includes(id) && ratings[id].ros_rank && ratings[id].value >= 5)
     .sort((a, b) => ratings[b].value - ratings[a].value || a.localeCompare(b)).slice(0, 12);
@@ -67,8 +69,7 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
     for (const [countA, countB] of [[1, 1], [2, 1], [1, 2], [2, 2]]) {
       const accepted = [];
       for (const giveA of ba[countA]) for (const giveB of bb[countB]) {
-        // Same-position shuffles have no modeled mutual roster benefit.
-        if (giveA.map(p => ratings[p].position).sort().join() === giveB.map(p => ratings[p].position).sort().join()) continue;
+        const samePositions = giveA.map(p => ratings[p].position).sort().join() === giveB.map(p => ratings[p].position).sort().join();
         const sum = ids => ids.reduce((s, p) => s + ratings[p].value, 0);
         const rawA = sum(giveA), rawB = sum(giveB);
         // A manager consolidating two assets pays a premium for the single asset.
@@ -97,8 +98,10 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
         const afterA = strength([...idsA].filter(p => !a.reserve.includes(p)), ratings, league.roster_positions);
         const afterB = strength([...idsB].filter(p => !b.reserve.includes(p)), ratings, league.roster_positions);
         const gainA = afterA[1] - beforeA[1], gainB = afterB[1] - beforeB[1];
-        // Both rosters must improve, with no loss to either starting lineup.
-        if (Math.min(gainA, gainB) < .15 || Math.min(afterA[0] - beforeA[0], afterB[0] - beforeB[0]) < -.01 || gainA + gainB < 1) continue;
+        // Similar-value position swaps can reflect manager preferences even when
+        // this deterministic lineup model favors one player over the other.
+        // Trades changing positional composition still need mutual roster fit.
+        if (!samePositions && (Math.min(gainA, gainB) < .15 || Math.min(afterA[0] - beforeA[0], afterB[0] - beforeB[0]) < -.01 || gainA + gainB < 1)) continue;
         if (countA !== countB) {
           const recipient = countA === 2 ? b : a, pack = countA === 2 ? giveA : giveB;
           const after = countA === 2 ? idsB : idsA;
@@ -108,18 +111,22 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
         }
         const id = digest([league.league_id, league.season, epoch, a.id, b.id, [...giveA].sort(), [...giveB].sort()]).slice(0, 24);
         accepted.push({id, a: a.id, b: b.id, give_a: [...giveA].sort(), give_b: [...giveB].sort(), value_a: round(valueA), value_b: round(valueB),
-          gap: Math.round(gap * 100), kind: `${Math.min(countA, countB)}-for-${Math.max(countA, countB)}`, drops,
+          gap: Math.round(gap * 100), kind: `${Math.min(countA, countB)}-for-${Math.max(countA, countB)}`, drops, same_position_swap: samePositions,
           score: round((1 - gap) * 6 + Math.min(gainA, gainB) * 2 + gainA + gainB, 2),
           starter_gain: {[a.id]: round(afterA[0] - beforeA[0]), [b.id]: round(afterB[0] - beforeB[0])}, fit_gain: {[a.id]: round(gainA), [b.id]: round(gainB)}});
       }
-      const used = {}, selected = [];
-      for (const p of accepted.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))) {
-        if ([...p.give_a, ...p.give_b].some(id => (used[id] || 0) >= 2)) continue;
-        selected.push(p);
-        for (const id of [...p.give_a, ...p.give_b]) used[id] = (used[id] || 0) + 1;
-        if (selected.length === 4) break;
+      // Add swaps alongside the existing roster-fit selection, so new candidates
+      // don't displace already liked deals merely by competing for deck slots.
+      for (const pool of [accepted.filter(p => !p.same_position_swap), accepted.filter(p => p.same_position_swap)]) {
+        const used = {}, selected = [];
+        for (const p of pool.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))) {
+          if ([...p.give_a, ...p.give_b].some(id => (used[id] || 0) >= 2)) continue;
+          selected.push(p);
+          for (const id of [...p.give_a, ...p.give_b]) used[id] = (used[id] || 0) + 1;
+          if (selected.length === 4) break;
+        }
+        proposals.push(...selected);
       }
-      proposals.push(...selected);
     }
   }
   return {league: Object.fromEntries(['league_id', 'name', 'season', 'total_rosters'].map(k => [k, league[k]])),

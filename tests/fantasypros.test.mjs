@@ -119,7 +119,7 @@ test('missing credentials do not fetch or fall back to Sleeper search ranks',asy
   const model=generate(league,rosters,users,players,[]);
   assert.equal(model.proposals.length,0);assert.equal(model.recommendations.status,'unavailable');
 });
-test('ROS values ignore hot recent results/search order, forbid star-for-bench bundles and reward both lineups',()=>{
+test('ROS values ignore recent results, protect stars and require mutual fit for position-changing trades',()=>{
   const {players,rosters,users}=inputs();
   const ranks={...mapRankings(parseRankings(responseData(),'2026','HALF','ALL',now).rows,players,rosters),source:'FantasyPros',type:'ROS',scoring:'HALF',fetched_at:new Date(now).toISOString(),published_at:new Date(now).toISOString()};
   const model=generate(league,rosters,users,players,[],ranks);
@@ -132,14 +132,45 @@ test('ROS values ignore hot recent results/search order, forbid star-for-bench b
   const protectedStar=generate(league,rosters,users,players,[],weakPackages);
   assert.ok(protectedStar.proposals.every(p=>![...p.give_a,...p.give_b].includes('1')));
   for(const p of model.proposals) {
-    assert.ok(Math.min(...Object.values(p.fit_gain))>=.1);assert.ok(Math.min(...Object.values(p.starter_gain))>=0);
-    assert.notEqual(p.give_a.map(id=>players[id].position).sort().join(),p.give_b.map(id=>players[id].position).sort().join());
+    const samePositions=p.give_a.map(id=>players[id].position).sort().join()===p.give_b.map(id=>players[id].position).sort().join();
+    if(!samePositions) {
+      assert.ok(Math.min(...Object.values(p.fit_gain))>=.1);assert.ok(Math.min(...Object.values(p.starter_gain))>=0);
+    }
     assert.ok(p.gap<=12);
     assert.ok([...p.give_a,...p.give_b].every(id=>model.players[id].ros_rank));
   }
   const changed=structuredClone(rosters);changed[0].reserve=['1'];
   const reserved=generate(league,changed,users,players,[],ranks);
   assert.notEqual(reserved.epoch,model.epoch);assert.ok(reserved.proposals.every(p=>!p.give_a.includes('1')));
+});
+test('similar-value QB, RB, WR and TE swaps are included even with neutral or one-sided lineup changes',()=>{
+  const positions=['QB','RB','WR','TE'],players={},bySleeper={};
+  for(const [i,pos] of positions.entries())for(const team of ['a','b']) {
+    const id=team+pos;players[id]={player_id:id,full_name:id,position:pos,team:'BUF'};
+    bySleeper[id]={rank:[80,20,40,90][i]+(team==='b'?2:0),position_rank:pos==='WR'?5:team==='a'?3:4};
+  }
+  const rosters=['a','b'].map((team,i)=>({roster_id:i+1,owner_id:String(i+1),players:positions.map(pos=>team+pos),reserve:[]}));
+  const users=[{user_id:'1',display_name:'A'},{user_id:'2',display_name:'B'}];
+  const ranks={bySleeper,source:'FantasyPros',type:'ROS',scoring:'HALF'};
+  const settings={...league,roster_positions:positions};
+  const model=generate(settings,rosters,users,players,[],ranks);
+  for(const pos of positions) {
+    const proposal=model.proposals.find(p=>p.kind==='1-for-1'&&p.give_a[0]==='a'+pos&&p.give_b[0]==='b'+pos);
+    assert.ok(proposal,`${pos} swap must be available`);assert.ok(proposal.gap<=12);
+    assert.ok(Math.min(...Object.values(proposal.fit_gain))<=0);
+  }
+  const expensive=structuredClone(ranks);expensive.bySleeper.bQB.rank=160;
+  const changed=generate(settings,rosters,users,players,[],expensive);
+  assert.ok(!changed.proposals.some(p=>p.kind==='1-for-1'&&p.give_a[0]==='aQB'&&p.give_b[0]==='bQB'));
+});
+test('expanded swap eligibility preserves the previous roster epoch and existing canonical terms',()=>{
+  const {players,rosters,users}=inputs();
+  const ranks=mapRankings(parseRankings(responseData(),'2026','HALF','ALL',now).rows,players,rosters);
+  const model=generate(league,rosters,users,players,[],ranks);
+  // Recorded from the v1 engine before widening eligibility.
+  assert.equal(model.epoch,'c99de9ced208c2ab');
+  const oldIDs=['33b2f65f6dac3463619a40b6','3fa4f807c89dad0953f357b5','4e9cbf2b5350930d2cac0cf1','c9fe39bb0b44da8148d41843','9757775b94dd4d8f3823f702','da3c28b4ff86504de924642e','81837b2cab37161ca9c603a2','2d618b7057909243bc98c59c'];
+  for(const id of oldIDs)assert.ok(model.proposals.some(p=>p.id===id),`Existing deal ${id} must remain available`);
 });
 test('unavailable and expired rankings pause API decks and votes even with fresh Sleeper rosters',async()=>{
   const {players,rosters,users}=inputs();
