@@ -3,10 +3,10 @@ const base = 'https://api.fantasypros.com/public/v2/json';
 const positions = new Set(['QB', 'RB', 'WR', 'TE']);
 export const RANK_CACHE_MS = 6 * 3600000;
 export const RANK_MAX_AGE_MS = 36 * 3600000;
-export const RANKINGS_VERSION = 2;
+export const RANKINGS_VERSION = 3;
 const MAX_PUBLICATION_AGE_MS = 7 * 86400000;
 export class RankingsError extends Error {
-  constructor(reason, fields = []) { super('FantasyPros rankings unavailable.'); this.reason = reason; this.fields = fields; }
+  constructor(reason, fields = [], counts = null) { super('FantasyPros rankings unavailable.'); this.reason = reason; this.fields = fields; this.counts = counts; }
 }
 export function rankingFormat(league) {
   const rec = Number(league.scoring_settings?.rec || 0);
@@ -37,7 +37,10 @@ export function parseRankings(data, season, scoring, position = 'ALL', now = Dat
     team: p.player_team_id, yahoo_id: String(p.player_yahoo_id || ''),
     rank: Number(p.rank_ecr), position_rank: Number(String(p.pos_rank || '').replace(/^[A-Z]+/, '')) || null,
   })).filter(p => p.name && /^\d+$/.test(p.id) && Number.isFinite(p.rank) && p.rank > 0);
-  if (rows.length < (position === 'ALL' ? 50 : 12) || new Set(rows.map(p => p.id)).size !== rows.length) throw new RankingsError('incomplete_rankings');
+  const unique = new Set(rows.map(p => p.id)).size;
+  const counts = {position, received: data.players.length, valid: rows.length, unique,
+    positions: Object.fromEntries([...positions].map(pos => [pos, rows.filter(p => p.position === pos).length]))};
+  if (rows.length < (position === 'ALL' ? 50 : 12) || unique !== rows.length) throw new RankingsError('incomplete_rankings', [unique !== rows.length ? 'duplicate_player_ids' : 'too_few_ranked_players'], counts);
   // Position ranks, when absent, are derived from the full list, never league rosters.
   for (const pos of positions) rows.filter(p => p.position === pos).sort((a, b) => a.rank - b.rank).forEach((p, i) => { p.position_rank ||= i + 1; });
   return {rows, published_at: new Date(published).toISOString()};
@@ -79,7 +82,7 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
     // Persist a short cooldown: a denied/rate-limited account is not hit on every visit.
     const failureKey = `${cacheKey}/retry`;
     const failure = await store.get(failureKey, {type: 'json'});
-    if (failure?.until > now) { if (!ranks) throw new RankingsError(failure.reason, failure.fields); }
+    if (failure?.until > now) { if (!ranks) throw new RankingsError(failure.reason, failure.fields, failure.counts); }
     else try {
       const read = async position => {
         const url = new URL(`${base}/nfl/${league.season}/consensus-rankings`);
@@ -96,7 +99,7 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
         const qb = await read('QB');
         // Positional QB rankings supplement fit; ALL alone establishes market values.
         for (const row of all.rows.filter(p => p.position === 'QB')) row.position_rank = qb.rows.find(p => p.id === row.id)?.rank || row.position_rank;
-        if (!all.rows.some(p => p.position === 'QB')) throw new RankingsError('incomplete_rankings');
+        if (!all.rows.some(p => p.position === 'QB')) throw new RankingsError('incomplete_rankings', ['no_qbs_in_overall'], {position: 'ALL', received: all.rows.length, qb_received: qb.rows.length});
       }
       mapRankings(all.rows, players, rosters);
       const next = {...all, season: String(league.season), scoring, fetched_at: now};
@@ -106,8 +109,9 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
     } catch (error) {
       const reason = error instanceof RankingsError ? error.reason : 'provider_unavailable';
       const fields = error instanceof RankingsError ? error.fields : [];
-      await store.setJSON(failureKey, {until: now + 15 * 60000, reason, fields});
-      if (!ranks) throw new RankingsError(reason, fields);
+      const counts = error instanceof RankingsError ? error.counts : null;
+      await store.setJSON(failureKey, {until: now + 15 * 60000, reason, fields, counts});
+      if (!ranks) throw new RankingsError(reason, fields, counts);
     }
   }
   return {...mapRankings(ranks.rows, players, rosters), source: 'FantasyPros', type: 'ROS', scoring,

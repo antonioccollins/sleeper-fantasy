@@ -45,12 +45,13 @@ export async function refreshLeague(store = getStorage()) {
       await store.setJSON(playerKey, cached);
     }
     const data = await Promise.all([read(`league/${leagueID}/rosters`), read(`league/${leagueID}/users`)]);
-    let rankings = null, reason = null, fields = [];
+    let rankings = null, reason = null, fields = [], counts = null;
     try { rankings = await getRankings(store, league, cached.players, data[0]); }
     catch (error) {
       if (!(error instanceof RankingsError)) throw error;
       reason = error.reason;
       fields = error.fields;
+      counts = error.counts;
     }
     // Completed-week count is informational; past scores no longer price trades.
     const model = generate(league, data[0], data[1], cached.players, Array.from({length: lastWeek}, () => []), rankings);
@@ -58,6 +59,7 @@ export async function refreshLeague(store = getStorage()) {
     model.rankings_version = RANKINGS_VERSION;
     if (reason) model.recommendations.reason = reason;
     if (fields.length) model.recommendations.fields = fields;
+    if (counts) model.recommendations.counts = counts;
     const written = await store.setJSON(modelKey, model, current ? {onlyIfMatch: current.etag} : {onlyIfNew: true});
     if (written.modified && !written.etag) throw new Error('Storage did not confirm the league snapshot.');
     return written.modified ? model : await store.get(modelKey, {type: 'json'});
