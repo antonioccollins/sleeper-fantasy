@@ -1,4 +1,4 @@
-# Trade Match
+# TradeBlock
 
 A mobile-friendly fantasy trade app for **Super Bowl Bound**. Choose your team, swipe through live-roster trade ideas, and get an in-app alert when both managers like the **exact same deal**. Discuss matches in your group chat and submit trades manually in Sleeper.
 
