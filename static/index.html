@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#173e32">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Swipe on fantasy football trades and match with other managers in your league.">
   <title>Trade Match · Super Bowl Bound</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -12,24 +12,25 @@
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="/" aria-label="Trade Match home"><span class="brand-mark">↔</span><span>trade<span class="brand-light">match</span><span class="brand-dot">.</span></span></a>
-      <div class="league-box"><span class="league-icon">🏈</span><div><strong id="league-name">Super Bowl Bound</strong><span id="league-info">Connecting to Sleeper…</span></div><span class="live-dot"></span></div>
+    <header class="app-header"><div class="header-inner">
+      <a class="brand" href="/" aria-label="Trade Match home"><span class="brand-mark" data-icon="swap"></span><span>trade match</span></a>
       <nav aria-label="Main navigation">
-        <button class="nav-item active" data-view="discover"><span data-icon="cards"></span>Trades<span class="nav-arrow" data-icon="arrow"></span></button>
-        <button class="nav-item" data-view="likes"><span data-icon="heart"></span>Likes<span id="likes-count" class="nav-count">0</span></button>
-        <button class="nav-item" data-view="matches"><span data-icon="spark"></span>Matches<span id="matches-count" class="nav-count">0</span></button>
+        <button class="nav-item active" data-view="discover" aria-current="page"><span data-icon="cards"></span><span>Trades</span></button>
+        <button class="nav-item" data-view="likes"><span data-icon="heart"></span><span>Likes</span><span id="likes-count" class="nav-count" hidden>0</span></button>
+        <button class="nav-item" data-view="matches"><span data-icon="matches"></span><span>Matches</span><span id="matches-count" class="nav-count" hidden>0</span></button>
       </nav>
+      <div class="header-account"><div class="league-box"><strong id="league-name">Super Bowl Bound</strong><span id="league-info">Connecting…</span></div>
       <button id="team-switch" class="team-switch" aria-label="Change team"><span class="team-avatar" id="my-avatar">?</span><span><strong id="my-team-name">Choose your team</strong><small id="my-manager"></small></span><span data-icon="chevron"></span></button>
-    </aside>
+      </div>
+    </div></header>
     <main>
       <header class="page-intro"><h1 id="page-title">Trades</h1><div class="page-actions"><button id="roster-button" class="text-button">Your roster</button><button id="how-button" class="info-button" aria-label="About Trade Match" title="About Trade Match"><span data-icon="info"></span></button></div></header>
       <div id="global-message" class="notice" hidden></div>
       <section id="discover-view" class="view">
         <div class="discovery-layout">
           <div class="deck-area">
-            <div class="deck-toolbar"><div class="filter-pills" aria-label="Trade type"><button class="selected" data-kind="all">All trades</button><button data-kind="1-for-1">1 for 1</button><button data-kind="1-for-2">2 for 1</button><button data-kind="2-for-2">2 for 2</button></div></div>
-            <div class="card-stack"><div class="stack-layer"></div><article id="trade-card" class="trade-card" aria-live="polite"><div class="empty-state"><span class="loading-dot"></span><h2>Loading…</h2></div></article></div>
+            <div class="deck-toolbar"><div class="filter-pills" aria-label="Trade type"><button class="selected" data-kind="all" aria-pressed="true">All trades</button><button data-kind="1-for-1" aria-pressed="false">1 for 1</button><button data-kind="1-for-2" aria-pressed="false">2 for 1</button><button data-kind="2-for-2" aria-pressed="false">2 for 2</button></div></div>
+            <div class="card-stack"><article id="trade-card" class="trade-card" aria-live="polite"><div class="empty-state"><span class="loading-dot"></span><h2>Loading…</h2></div></article></div>
             <div class="swipe-actions"><button id="pass-button" class="swipe-button pass" aria-label="Pass on this trade"><span data-icon="x"></span></button><button id="undo-button" class="undo-button" aria-label="Undo your last swipe" disabled><span data-icon="undo"></span></button><button id="like-button" class="swipe-button like" aria-label="Like this trade"><span data-icon="heart"></span></button></div>
           </div>
         </div>
@@ -41,7 +42,7 @@
   <dialog id="team-dialog"><div class="dialog-heading"><h2>Choose your team</h2></div><div id="team-grid" class="team-grid"></div><button id="team-dialog-close" class="text-button" hidden>Cancel</button></dialog>
   <dialog id="how-dialog"><button class="dialog-close" data-close="how-dialog" aria-label="Close">×</button><h2>Trade Match</h2><p>Like a trade. If the other manager likes it too, you both get a match.</p><details class="method-note"><summary>About the suggestions</summary><p>Suggestions use league scoring, recent results, roster fit, and reported injuries. These are estimates, not expert trade values. Submit agreed trades in Sleeper.</p><p>Anyone with this link can choose a team.</p></details></dialog>
   <dialog id="roster-dialog"><button class="dialog-close" data-close="roster-dialog" aria-label="Close">×</button><h2 id="roster-title">Your roster</h2><div id="roster-list"></div></dialog>
-  <dialog id="match-dialog" class="match-dialog"><button class="dialog-close" data-close="match-dialog" aria-label="Close">×</button><div class="match-spark">✦</div><h2>It’s a match<span>!</span></h2><p id="match-partner"></p><div id="match-terms"></div><p class="match-next">Arrange the trade in Sleeper.</p><button id="match-open-button" class="primary-button">View matches <span data-icon="arrow"></span></button></dialog>
+  <dialog id="match-dialog" class="match-dialog"><button class="dialog-close" data-close="match-dialog" aria-label="Close">×</button><div class="match-icon" data-icon="heart"></div><h2>It’s a match!</h2><p id="match-partner"></p><div id="match-terms"></div><p class="match-next">Arrange the trade in Sleeper.</p><button id="match-open-button" class="primary-button">View matches</button></dialog>
   <div id="toast" role="status" class="toast" hidden></div>
 </body>
 </html>

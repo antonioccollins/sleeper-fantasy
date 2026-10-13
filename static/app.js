@@ -5,6 +5,7 @@ const icons = {
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
   x: '<path d="m6 6 12 12M18 6 6 18"/>',
   cards: '<rect x="7" y="3" width="13" height="17" rx="2"/><path d="M4 6H3v14a2 2 0 0 0 2 2h12M11 8h5M11 12h5"/>',
+  matches: '<path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2"/>',
   spark: '<path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
   chevron: '<path d="m9 5 7 7-7 7"/>',
@@ -42,11 +43,11 @@ function notice(message) {
   $('#global-message').textContent = message || '';
   $('#global-message').hidden = !message;
 }
-function empty(title, message='', symbol='✦') {
-  return `<div class="empty-state"><span class="empty-symbol">${symbol}</span><h2>${escape(title)}</h2>${message ? `<p>${escape(message)}</p>` : ''}</div>`;
+function empty(title, message='', symbol='cards') {
+  return `<div class="empty-state"><span class="empty-symbol">${icon(symbol)}</span><h2>${escape(title)}</h2>${message ? `<p>${escape(message)}</p>` : ''}</div>`;
 }
 function playerRow(p) {
-  return `<div class="player"><div class="player-avatar">${escape(initials(p.name))}</div><div class="player-info"><strong>${escape(p.name)}</strong><small>${escape(p.position)} <span>·</span> ${escape(p.nfl_team)}${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div></div>`;
+  return `<div class="player"><div class="player-avatar">${escape(p.position)}</div><div class="player-info"><strong>${escape(p.name)}</strong><small>${escape(p.nfl_team)}${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div></div>`;
 }
 function names(players) { return players.map((p) => escape(p.name)).join('<br>'); }
 function terms(proposal) {
@@ -63,7 +64,7 @@ function renderCard() {
   $('#like-button').disabled = disabled;
   $('#undo-button').disabled = state.busy || !state.lastVote;
   if (!state.team) {
-    card.innerHTML = empty('Choose your team', '', '↔');
+    card.innerHTML = empty('Choose your team', '', 'swap');
     return;
   }
   if (!p) {
@@ -81,6 +82,7 @@ function renderTeam() {
   $('#my-avatar').textContent = initials(state.team.name);
   $('#my-team-name').textContent = state.team.name;
   $('#my-manager').textContent = `${state.team.manager} · ${state.team.wins}–${state.team.losses}`;
+  $('#team-switch').title = state.team.name;
 }
 async function loadDeck() {
   const generation = state.generation;
@@ -111,6 +113,8 @@ async function chooseTeam(id) {
     state.matches = [];
     $('#likes-count').textContent = '0';
     $('#matches-count').textContent = '0';
+    $('#likes-count').hidden = true;
+    $('#matches-count').hidden = true;
     $('#team-dialog').close();
     renderTeam();
     setView('discover');
@@ -160,11 +164,13 @@ function savedItem(p,matched) {
 }
 function renderLists() {
   $('#likes-count').textContent=state.likes.length;
+  $('#likes-count').hidden=state.likes.length===0;
   const unread=state.matches.filter(m=>m.unread).length;
   $('#matches-count').textContent=unread||state.matches.length;
+  $('#matches-count').hidden=state.matches.length===0;
   $('#matches-count').classList.toggle('unread',unread>0);
-  $('#likes-list').innerHTML=state.likes.length ? state.likes.map(p=>savedItem(p,false)).join('') : empty('No likes yet', '', '♡');
-  $('#matches-list').innerHTML=state.matches.length ? state.matches.map(p=>savedItem(p,true)).join('') : empty('No matches yet');
+  $('#likes-list').innerHTML=state.likes.length ? state.likes.map(p=>savedItem(p,false)).join('') : empty('No likes yet', '', 'heart');
+  $('#matches-list').innerHTML=state.matches.length ? state.matches.map(p=>savedItem(p,true)).join('') : empty('No matches yet', '', 'matches');
   $$('[data-withdraw]').forEach(button=>button.addEventListener('click',async()=>{
     if(state.busy) return;
     state.busy=true;
@@ -212,7 +218,11 @@ async function showMatch(match) {
 function setView(view) {
   state.view=view;
   $$('.view').forEach(el=>{el.hidden=el.id!==`${view}-view`;});
-  $$('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.view===view));
+  $$('.nav-item').forEach(el=>{
+    const active=el.dataset.view===view;
+    el.classList.toggle('active',active);
+    if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');
+  });
   $('#page-title').textContent={discover:'Trades',likes:'Likes',matches:'Matches'}[view];
 }
 function openRoster() {
@@ -253,7 +263,7 @@ $$('[data-view]').forEach(button=>button.addEventListener('click',()=>{
 $$('[data-kind]').forEach(button=>button.addEventListener('click',async()=>{
   if(state.busy||!state.team)return;
   state.kind=button.dataset.kind;
-  $$('[data-kind]').forEach(b=>b.classList.toggle('selected',b===button));
+  $$('[data-kind]').forEach(b=>{b.classList.toggle('selected',b===button);b.setAttribute('aria-pressed',String(b===button));});
   try{await loadDeck();}catch(e){toast(e.message);}
 }));
 document.addEventListener('keydown',event=>{
