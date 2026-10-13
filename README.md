@@ -50,7 +50,7 @@ As requested, team selection is **not identity-verified**: anyone with the URL c
 
 Trade scores are a **transparent heuristic**, not expert market values. The engine uses this league's actual weekly scoring, averages non-zero scored weeks, and blends small samples with a position baseline from Sleeper's search rank. It adjusts for reported injuries, positional scarcity, starter fit, and bench depth.
 
-It offers 1-for-1, 2-for-1, and 2-for-2 deals within an 18% value gap, excludes reserve players, limits low-value throw-ins, and accounts for a suggested drop when a package needs an extra roster spot. Every card shows injury flags, the value comparison, and its calculation's limitations.
+It offers 1-for-1, 2-for-1, and 2-for-2 deals within an 18% value gap, excludes reserve players, limits low-value throw-ins, and accounts for a suggested drop when a package needs an extra roster spot. Cards focus on the players you give and get, with injury flags and any required roster drop. Background scoring and calculation details stay off the swipe screen; a brief explanation is available through the info button.
 
 Zero-point games can be omitted along with byes/inactive weeks. Changing roles, news, keeper value, bye strategy, and future projections aren't fully modeled. No draft picks are suggested. Managers should review every deal; a mutual like is interest, not an executed trade.
 

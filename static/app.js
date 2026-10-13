@@ -42,11 +42,11 @@ function notice(message) {
   $('#global-message').textContent = message || '';
   $('#global-message').hidden = !message;
 }
-function empty(title, message, symbol='✦') {
-  return `<div class="empty-state"><span class="empty-symbol">${symbol}</span><h2>${escape(title)}</h2><p>${escape(message)}</p></div>`;
+function empty(title, message='', symbol='✦') {
+  return `<div class="empty-state"><span class="empty-symbol">${symbol}</span><h2>${escape(title)}</h2>${message ? `<p>${escape(message)}</p>` : ''}</div>`;
 }
-function playerRow(p, side) {
-  return `<div class="player"><div class="player-avatar">${escape(initials(p.name))}</div><div class="player-info"><strong>${escape(p.name)}</strong><small>${escape(p.position)} <span>·</span> ${escape(p.nfl_team)}${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div><div class="player-value">${p.value.toFixed(1)}<small>TRADE SCORE</small></div></div>`;
+function playerRow(p) {
+  return `<div class="player"><div class="player-avatar">${escape(initials(p.name))}</div><div class="player-info"><strong>${escape(p.name)}</strong><small>${escape(p.position)} <span>·</span> ${escape(p.nfl_team)}${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div></div>`;
 }
 function names(players) { return players.map((p) => escape(p.name)).join('<br>'); }
 function terms(proposal) {
@@ -58,24 +58,23 @@ function renderCard() {
   card.style.transform = '';
   const p = state.deck[0];
   card.dataset.proposalId = p?.id || '';
-  $('#deck-counter').textContent = state.team ? `${state.deck.length} ideas left` : '';
   const disabled = state.busy || !p || !state.team || state.boot?.stale;
   $('#pass-button').disabled = disabled;
   $('#like-button').disabled = disabled;
   $('#undo-button').disabled = state.busy || !state.lastVote;
   if (!state.team) {
-    card.innerHTML = empty('Your next trade is waiting.', 'Choose your team to discover deals built for your league.', '↔');
+    card.innerHTML = empty('Choose your team', '', '↔');
     return;
   }
   if (!p) {
-    card.innerHTML = empty('You’ve explored them all.', 'Try another trade type, review your likes, or come back after rosters change. A match appears when both managers like the same deal.');
+    card.innerHTML = empty('No more trades', 'Try another filter or check your likes.');
     return;
   }
-  const gain = p.starter_gain;
-  const fit = gain > .4 ? `Estimated starting-lineup boost: +${gain.toFixed(1)} points.` : 'Similar estimated starter production, with a different roster mix.';
-  card.innerHTML = `<header class="card-header"><div class="card-topline"><span class="balanced-badge">${icon('check')} BALANCED VALUE</span><span class="trade-shape">${escape(p.kind.replaceAll('-', ' '))}</span></div><div class="card-teams"><div class="partner-avatar">${escape(initials(p.partner.name))}</div><div><small>A POTENTIAL DEAL WITH</small><h2>${escape(p.partner.name)}</h2></div><span>${icon('arrow')}</span></div></header>
-    <div class="trade-content"><div class="give-group"><div class="side-label"><span>YOU GIVE</span><span>From ${escape(state.team.manager)}’s roster</span></div>${p.give.map((v) => playerRow(v,'give')).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive"><span>YOU GET</span><span>From ${escape(p.partner.manager)}’s roster</span></div>${p.receive.map((v) => playerRow(v,'receive')).join('')}</div></div>
-    <div class="card-bottom"><div class="balance-line"><span>Trade value comparison</span><strong>${p.gap}% apart · within our 18% range</strong></div><div class="balance-meter"><span class="bar-a"></span><span class="bar-b"></span></div><p class="trade-reason">${icon('spark')}<span>${fit}</span></p>${p.drops.length ? `<p class="drop-note">You would need an extra roster spot. Suggested drop: ${p.drops.map(v=>escape(v.name)).join(', ')}. Review this before agreeing.</p>` : ''}${p.partner_drops.length ? `<p class="drop-note">Your trade partner would need ${p.partner_drops.length} extra roster spot.</p>` : ''}<details class="method-details"><summary>What goes into these estimates?</summary><p>Recent scoring (${state.boot.completed_weeks} completed weeks), a Sleeper-rank position baseline, starter fit, bench depth, and injury adjustments. Zero-score weeks are excluded. Trade scores aren’t market prices or expert projections. Discuss the deal before submitting it.</p></details></div>`;
+  const drops = p.drops.length ? `<p class="drop-note">Extra roster spot needed. Suggested drop: ${p.drops.map(v=>escape(v.name)).join(', ')}.</p>` : '';
+  const partnerDrops = p.partner_drops.length ? '<p class="drop-note">Your partner needs an extra roster spot.</p>' : '';
+  card.innerHTML = `<header class="card-header"><div class="card-teams"><div class="partner-avatar">${escape(initials(p.partner.name))}</div><h2>${escape(p.partner.name)}</h2></div></header>
+    <div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
+    ${drops || partnerDrops ? `<div class="card-bottom">${drops}${partnerDrops}</div>` : ''}`;
 }
 function renderTeam() {
   if (!state.team) return;
@@ -90,7 +89,7 @@ async function loadDeck() {
   if (generation !== state.generation || kind !== state.kind) return;
   state.deck = data.proposals;
   state.boot.stale = data.stale;
-  notice(data.stale ? 'Sleeper roster updates are delayed. You can browse, but voting is paused until fresh data arrives.' : '');
+  notice(data.stale ? 'Roster data is out of date. Voting is paused.' : '');
   renderCard();
 }
 function teamChoices() {
@@ -136,7 +135,6 @@ async function vote(decision) {
     state.deck.shift();
     state.lastVote=result.matched?null:proposal.id;
     if(result.matched) await showMatch(result.match);
-    else toast(decision==='like'?'Liked. If they like it too, you’ll both get a match.':'Passed. Let’s find a better fit.');
     await refreshLists(false);
   } catch (error) {
     toast(error.message);
@@ -153,26 +151,25 @@ async function undo() {
     state.lastVote=null;
     await loadDeck();
     await refreshLists(false);
-    toast('Last swipe undone.');
   } catch(error) {toast(error.message);}
   finally {state.busy=false;renderCard();}
 }
 function savedItem(p,matched) {
-  const status = matched ? (p.available?'Both managers liked this exact deal.':'Rosters changed. This match is no longer available.') : 'Waiting for a mutual like. Their vote stays private.';
-  return `<article class="saved-trade"><div class="saved-trade-header"><div><h3>${escape(p.partner.name)}</h3><small>${escape(p.kind.replaceAll('-',' '))}</small></div>${matched?'<span class="match-label">IT’S A MATCH</span>':icon('heart')}</div>${terms(p)}<div class="saved-trade-footer"><span>${status}</span>${!matched?`<button data-withdraw="${p.id}">Withdraw like</button>`:''}</div>${matched&&p.available?'<div class="saved-trade-footer"><span>Talk in your group chat, then submit on Sleeper. Nothing has been executed.</span></div>':''}</article>`;
+  const status = matched ? (p.available ? '' : 'Rosters changed. Trade unavailable.') : 'Pending';
+  return `<article class="saved-trade"><div class="saved-trade-header"><h3>${escape(p.partner.name)}</h3>${matched?'<span class="match-label">MATCH</span>':icon('heart')}</div>${terms(p)}${status ? `<div class="saved-trade-footer"><span>${status}</span>${!matched?`<button data-withdraw="${p.id}">Withdraw</button>`:''}</div>` : ''}</article>`;
 }
 function renderLists() {
   $('#likes-count').textContent=state.likes.length;
   const unread=state.matches.filter(m=>m.unread).length;
   $('#matches-count').textContent=unread||state.matches.length;
   $('#matches-count').classList.toggle('unread',unread>0);
-  $('#likes-list').innerHTML=state.likes.length ? state.likes.map(p=>savedItem(p,false)).join('') : empty('Nothing liked. Yet.', 'Tap the heart on a deal you’d take. You’ll find your pending likes here.', '♡');
-  $('#matches-list').innerHTML=state.matches.length ? state.matches.map(p=>savedItem(p,true)).join('') : empty('Good chemistry takes two.', 'When both managers like the exact same trade, it shows up here. Keep exploring.');
+  $('#likes-list').innerHTML=state.likes.length ? state.likes.map(p=>savedItem(p,false)).join('') : empty('No likes yet', '', '♡');
+  $('#matches-list').innerHTML=state.matches.length ? state.matches.map(p=>savedItem(p,true)).join('') : empty('No matches yet');
   $$('[data-withdraw]').forEach(button=>button.addEventListener('click',async()=>{
     if(state.busy) return;
     state.busy=true;
     button.disabled=true;
-    try {await api(`/api/votes/${button.dataset.withdraw}`,{method:'DELETE'});await refreshLists(false);await loadDeck();toast('Like withdrawn.');}
+    try {await api(`/api/votes/${button.dataset.withdraw}`,{method:'DELETE'});await refreshLists(false);await loadDeck();}
     catch(error){toast(error.message);button.disabled=false;}
     finally{state.busy=false;renderCard();}
   }));
@@ -200,14 +197,13 @@ async function refreshLeague() {
   lastLeagueCheck=Date.now();
   if(!state.team){notice('Choose your team again to reconnect.');renderCard();return;}
   renderTeam();
-  $('#sync-status').textContent=`Sleeper · Updated ${new Date(data.updated_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`;
-  notice(data.stale ? 'Sleeper updates are delayed. Voting is paused until fresh roster data arrives.' : '');
-  if(changed){state.lastVote=null;await loadDeck();toast('League rosters changed. Your trade ideas have been refreshed.');}
+  notice(data.stale ? 'Roster data is out of date. Voting is paused.' : '');
+  if(changed){state.lastVote=null;await loadDeck();}
   else renderCard();
 }
 async function showMatch(match) {
   state.announced.add(match.id);
-  $('#match-partner').textContent=`You and ${match.partner.name} both liked the same deal.`;
+  $('#match-partner').textContent=match.partner.name;
   $('#match-terms').innerHTML=terms(match);
   if(!$('#match-dialog').open) $('#match-dialog').showModal();
   try {await api(`/api/matches/${match.id}`,{method:'POST',body:'{}'});}
@@ -217,14 +213,12 @@ function setView(view) {
   state.view=view;
   $$('.view').forEach(el=>{el.hidden=el.id!==`${view}-view`;});
   $$('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.view===view));
-  const titles={discover:['Find your next win','A little give. A little get. A better team on both sides.'],likes:['You’ve got good taste','Deals you’re into. Waiting for the feeling to be mutual.'],matches:['Looks like chemistry','You both see the potential. Now make it happen.']};
-  $('#page-title').innerHTML=`${titles[view][0]}<span>.</span>`;
-  $('#page-description').textContent=titles[view][1];
+  $('#page-title').textContent={discover:'Trades',likes:'Likes',matches:'Matches'}[view];
 }
 function openRoster() {
   if(!state.team)return;
   $('#roster-title').textContent=state.team.name;
-  $('#roster-list').innerHTML=state.team.players.map(id=>state.boot.players[id]).filter(Boolean).sort((a,b)=>b.value-a.value).map(p=>`<div class="roster-row"><div class="player-avatar">${escape(p.position)}</div><div><strong>${escape(p.name)}</strong><small>${escape(p.nfl_team)} ${p.injury?'· '+escape(p.injury):''}${state.team.reserve.includes(p.id)?' · Reserve':''}</small></div><span>${p.value.toFixed(1)} score</span></div>`).join('');
+  $('#roster-list').innerHTML=state.team.players.map(id=>state.boot.players[id]).filter(Boolean).sort((a,b)=>b.value-a.value).map(p=>`<div class="roster-row"><div class="player-avatar">${escape(p.position)}</div><div><strong>${escape(p.name)}</strong><small>${escape(p.nfl_team)} ${p.injury?'· '+escape(p.injury):''}${state.team.reserve.includes(p.id)?' · Reserve':''}</small></div></div>`).join('');
   $('#roster-dialog').showModal();
 }
 async function boot() {
@@ -234,13 +228,11 @@ async function boot() {
     lastLeagueCheck=Date.now();
     $('#league-name').textContent=data.league.name;
     $('#league-info').textContent=`${data.league.total_rosters} teams · ${data.scoring}`;
-    $('#season-tag').textContent=`${data.league.season} SEASON / FANTASY FOOTBALL`;
-    $('#sync-status').textContent=`Sleeper · Updated ${new Date(data.updated_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`;
     teamChoices();renderTeam();renderCard();
-    if(data.stale)notice('Sleeper updates are delayed. Voting is paused until fresh roster data arrives.');
+    if(data.stale)notice('Roster data is out of date. Voting is paused.');
     if(state.team){await loadDeck();await refreshLists(true);}
     else $('#team-dialog').showModal();
-  } catch(error){notice(error.message);$('#trade-card').innerHTML=empty('We’re between plays.','Couldn’t load your league. Refresh the page to try again.');$('#pass-button').disabled=true;$('#like-button').disabled=true;}
+  } catch(error){notice(error.message);$('#trade-card').innerHTML=empty('Couldn’t load your league','Refresh to try again.');$('#pass-button').disabled=true;$('#like-button').disabled=true;}
 }
 
 $('#pass-button').addEventListener('click',()=>vote('pass'));
