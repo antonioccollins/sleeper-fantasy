@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { generate, ENGINE_VERSION } from './engine.mjs';
-import { getRankings, RankingsError } from './fantasypros.mjs';
+import { getRankings, RankingsError, RANKINGS_VERSION } from './fantasypros.mjs';
 import { getStorage, leagueID, prefix, readVersioned } from './store.mjs';
 
 async function read(path) {
@@ -45,16 +45,19 @@ export async function refreshLeague(store = getStorage()) {
       await store.setJSON(playerKey, cached);
     }
     const data = await Promise.all([read(`league/${leagueID}/rosters`), read(`league/${leagueID}/users`)]);
-    let rankings = null, reason = null;
+    let rankings = null, reason = null, fields = [];
     try { rankings = await getRankings(store, league, cached.players, data[0]); }
     catch (error) {
       if (!(error instanceof RankingsError)) throw error;
       reason = error.reason;
+      fields = error.fields;
     }
     // Completed-week count is informational; past scores no longer price trades.
     const model = generate(league, data[0], data[1], cached.players, Array.from({length: lastWeek}, () => []), rankings);
     model.rankings_configured = Boolean(process.env.FANTASYPROS_API_KEY);
+    model.rankings_version = RANKINGS_VERSION;
     if (reason) model.recommendations.reason = reason;
+    if (fields.length) model.recommendations.fields = fields;
     const written = await store.setJSON(modelKey, model, current ? {onlyIfMatch: current.etag} : {onlyIfNew: true});
     if (written.modified && !written.etag) throw new Error('Storage did not confirm the league snapshot.');
     return written.modified ? model : await store.get(modelKey, {type: 'json'});
@@ -77,7 +80,7 @@ export async function getModel(store = getStorage()) {
 }
 
 function fresh(model) {
-  return model.engine_version === ENGINE_VERSION && model.rankings_configured === Boolean(process.env.FANTASYPROS_API_KEY) && Date.now() - Date.parse(model.updated_at) < 900000;
+  return model.engine_version === ENGINE_VERSION && model.rankings_version === RANKINGS_VERSION && model.rankings_configured === Boolean(process.env.FANTASYPROS_API_KEY) && Date.now() - Date.parse(model.updated_at) < 900000;
 }
 function safePrevious(model) {
   // Never keep serving the retired scoring engine during a failed migration.

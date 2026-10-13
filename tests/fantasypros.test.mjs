@@ -6,7 +6,7 @@ import { createHandler } from '../netlify/lib/api.mjs';
 import { refreshLeague } from '../netlify/lib/league.mjs';
 const now = Date.now();
 const league = {league_id:'1314338659381575680',season:'2026',name:'Test',total_rosters:2,roster_positions:['QB','RB','RB','WR','WR','WR','TE','FLEX','BN'],scoring_settings:{rec:.5}};
-const responseData = () => ({sport:'NFL',year:'2026',type:'ROS',scoring:'HALF',position_id:'ALL',last_updated_ts:Math.floor(now/1000),players:Array.from({length:160},(_,i)=>({player_id:i+1,player_name:`Player ${i+1}`,player_position_id:['RB','WR','TE','QB'][i%4],player_team_id:'BUF',player_yahoo_id:String(1000+i),rank_ecr:i+1,pos_rank:`${['RB','WR','TE','QB'][i%4]}${Math.floor(i/4)+1}`}))});
+const responseData = () => ({sport:'NFL',year:'2026',ranking_type_name:'ROS',scoring:'HALF',position_id:'ALL',week:'0',filters:null,count:160,total_experts:25,last_updated_ts:Math.floor(now/1000),players:Array.from({length:160},(_,i)=>({player_id:i+1,player_name:`Player ${i+1}`,player_position_id:['RB','WR','TE','QB'][i%4],player_team_id:'BUF',player_yahoo_id:String(1000+i),rank_ecr:i+1,pos_rank:`${['RB','WR','TE','QB'][i%4]}${Math.floor(i/4)+1}`}))});
 function inputs() {
   const players=Object.fromEntries(responseData().players.map(p=>[String(p.player_id),{player_id:String(p.player_id),full_name:p.player_name,position:p.player_position_id,team:'BUF',yahoo_id:p.player_yahoo_id}]));
   const rosters=[{roster_id:1,owner_id:'1',players:['1','5','9','46','50','54','3','4','13','58'],reserve:[]}, {roster_id:2,owner_id:'2',players:['2','6','10','41','69','61','7','8','14','18','65'],reserve:[]}];
@@ -40,7 +40,7 @@ test('requests exact ROS half-PPR endpoint with key only in header; caches for s
   assert.equal(calls,1);assert.ok(!JSON.stringify([...store.data]).includes('test-secret'));assert.ok(!JSON.stringify(ranks).includes('test-secret'));
 });
 test('validates season, scoring, ROS type, position, publication age and complete payload',()=>{
-  for(const patch of [{year:'2025'},{type:'DRAFT'},{scoring:'PPR'},{position_id:'RB'},{last_updated_ts:Math.floor(now/1000)-8*86400},{players:[]},{players:{}}]) {
+  for(const patch of [{year:'2025'},{ranking_type_name:'DRAFT'},{scoring:'PPR'},{position_id:'RB'},{last_updated_ts:Math.floor(now/1000)-8*86400},{players:[]},{players:{}}]) {
     assert.throws(()=>parseRankings({...responseData(),...patch},'2026','HALF','ALL',now));
   }
   const data=responseData();data.players[1].player_id=data.players[0].player_id;
@@ -48,6 +48,23 @@ test('validates season, scoring, ROS type, position, publication age and complet
   assert.equal(rankingFormat({...league,scoring_settings:{rec:1}}),'PPR');
   assert.equal(rankingFormat({...league,scoring_settings:{rec:0}}),'STD');
   assert.throws(()=>rankingFormat({...league,roster_positions:['QB','SUPER_FLEX']}));
+});
+test('accepts the official ranking_type_name response without a type field and validates its semantics',()=>{
+  const documented=responseData();
+  assert.equal(documented.type,undefined);
+  assert.equal(parseRankings(documented,'2026','HALF','ALL',now).rows.length,160);
+  assert.equal(parseRankings({...documented,ranking_type_name:'Rest of Season'},'2026','HALF','ALL',now).rows.length,160);
+  for(const name of ['DRAFT','WEEKLY','DYNASTY',''])assert.throws(()=>parseRankings({...documented,ranking_type_name:name,type:'ROS'},'2026','HALF','ALL',now),error=>error.reason==='incompatible_response'&&error.fields.includes('ranking_type_name'));
+  const legacy={...documented,type:'ROS'};delete legacy.ranking_type_name;
+  assert.equal(parseRankings(legacy,'2026','HALF','ALL',now).rows.length,160);
+  const malformed={...documented,sport:3,scoring:3};
+  assert.throws(()=>parseRankings(malformed,'2026','HALF','ALL',now),error=>error.reason==='incompatible_response'&&error.fields.join() === 'sport,scoring');
+});
+test('parser upgrades ignore the old unavailable snapshot and provider cooldown immediately',async()=>{
+  const store=new Store(),{players,rosters}=inputs();let calls=0;
+  await store.setJSON('fantasypros/v1/nfl/2026/ROS/HALF/retry',{until:now+15*60000,reason:'incompatible_response'});
+  const ranks=await getRankings(store,league,players,rosters,{apiKey:'test-secret',fetcher:async()=>{calls++;return ok(responseData());},now});
+  assert.equal(calls,1);assert.equal(ranks.type,'ROS');
 });
 test('joins independent provider IDs using Yahoo identity or unambiguous normalized name and position',()=>{
   const rows=[{id:'999',yahoo_id:'17',name:'Different spelling',position:'WR',rank:2},{id:'888',name:'D.J. Moore Jr.',position:'WR',rank:4},{id:'777',name:'Duplicate',position:'RB',rank:5},{id:'776',name:'Duplicate',position:'RB',rank:6}];
@@ -133,8 +150,8 @@ test('league refresh connects provider to engine, migrates old snapshots and pub
     return ok({...league,sport:'nfl',settings:{type:0,last_scored_leg:5}});
   };
   try {
-    // The previous engine may have a fresh timestamp; version must still migrate.
-    await store.setJSON('league/1314338659381575680/model',{engine_version:'old',updated_at:new Date().toISOString()});
+    // The old parser may have a fresh unavailable snapshot; parser version must still migrate.
+    await store.setJSON('league/1314338659381575680/model',{engine_version:'fantasypros-ros-v1',rankings_configured:true,updated_at:new Date().toISOString(),recommendations:{status:'unavailable',reason:'incompatible_response'}});
     const model=await refreshLeague(store);
     assert.equal(model.recommendations.status,'ready');assert.equal(model.recommendations.source,'FantasyPros');
     assert.equal(model.recommendations.scoring,'HALF');assert.ok(model.proposals.length>0);

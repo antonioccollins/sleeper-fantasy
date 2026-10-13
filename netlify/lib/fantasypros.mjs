@@ -3,9 +3,10 @@ const base = 'https://api.fantasypros.com/public/v2/json';
 const positions = new Set(['QB', 'RB', 'WR', 'TE']);
 export const RANK_CACHE_MS = 6 * 3600000;
 export const RANK_MAX_AGE_MS = 36 * 3600000;
+export const RANKINGS_VERSION = 2;
 const MAX_PUBLICATION_AGE_MS = 7 * 86400000;
 export class RankingsError extends Error {
-  constructor(reason) { super('FantasyPros rankings unavailable.'); this.reason = reason; }
+  constructor(reason, fields = []) { super('FantasyPros rankings unavailable.'); this.reason = reason; this.fields = fields; }
 }
 export function rankingFormat(league) {
   const rec = Number(league.scoring_settings?.rec || 0);
@@ -19,9 +20,16 @@ function publicationTime(data) {
   return ts > 0 ? (ts < 1e12 ? ts * 1000 : ts) : Date.parse(data.last_updated);
 }
 export function parseRankings(data, season, scoring, position = 'ALL', now = Date.now()) {
-  if (data?.sport?.toUpperCase() !== 'NFL' || String(data.year) !== String(season) || data.type?.toUpperCase() !== 'ROS' || data.scoring?.toUpperCase() !== scoring || data.position_id !== position || !Array.isArray(data.players)) {
-    throw new RankingsError('incompatible_response');
-  }
+  const upper = value => typeof value === 'string' ? value.toUpperCase() : '';
+  // The request parameter is `type`; the official response field is
+  // `ranking_type_name`. Older clients may supply `type` instead.
+  const rankingType = upper(data?.ranking_type_name ?? data?.type).replace(/[\s_-]/g, '');
+  const checks = {sport: upper(data?.sport) === 'NFL', year: String(data?.year) === String(season),
+    ranking_type_name: ['ROS', 'RESTOFSEASON'].includes(rankingType), scoring: upper(data?.scoring) === scoring,
+    position_id: upper(data?.position_id) === position, players: Array.isArray(data?.players)};
+  const fields = Object.keys(checks).filter(field => !checks[field]);
+  // Diagnostic field names are safe to expose; upstream bodies/values are not.
+  if (fields.length) throw new RankingsError('incompatible_response', fields);
   const published = publicationTime(data);
   if (!Number.isFinite(published) || now - published > MAX_PUBLICATION_AGE_MS || published - now > 86400000) throw new RankingsError('outdated_rankings');
   const rows = data.players.filter(p => positions.has(p.player_position_id)).map(p => ({
@@ -63,7 +71,7 @@ export function mapRankings(rows, players, rosters) {
 export async function getRankings(store, league, players, rosters, {apiKey = process.env.FANTASYPROS_API_KEY, fetcher = fetch, now = Date.now()} = {}) {
   if (!apiKey) throw new RankingsError('missing_key');
   const scoring = rankingFormat(league);
-  const cacheKey = `fantasypros/v1/nfl/${league.season}/ROS/${scoring}`;
+  const cacheKey = `fantasypros/v${RANKINGS_VERSION}/nfl/${league.season}/ROS/${scoring}`;
   const cached = await store.get(cacheKey, {type: 'json'});
   const valid = value => value?.season === String(league.season) && value?.scoring === scoring && Number.isFinite(value.fetched_at) && now - value.fetched_at <= RANK_MAX_AGE_MS && Number.isFinite(Date.parse(value.published_at)) && now - Date.parse(value.published_at) <= MAX_PUBLICATION_AGE_MS && Array.isArray(value.rows);
   let ranks = valid(cached) ? cached : null;
@@ -71,7 +79,7 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
     // Persist a short cooldown: a denied/rate-limited account is not hit on every visit.
     const failureKey = `${cacheKey}/retry`;
     const failure = await store.get(failureKey, {type: 'json'});
-    if (failure?.until > now) { if (!ranks) throw new RankingsError(failure.reason); }
+    if (failure?.until > now) { if (!ranks) throw new RankingsError(failure.reason, failure.fields); }
     else try {
       const read = async position => {
         const url = new URL(`${base}/nfl/${league.season}/consensus-rankings`);
@@ -97,8 +105,9 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
       await store.setJSON(failureKey, {until: 0});
     } catch (error) {
       const reason = error instanceof RankingsError ? error.reason : 'provider_unavailable';
-      await store.setJSON(failureKey, {until: now + 15 * 60000, reason});
-      if (!ranks) throw new RankingsError(reason);
+      const fields = error instanceof RankingsError ? error.fields : [];
+      await store.setJSON(failureKey, {until: now + 15 * 60000, reason, fields});
+      if (!ranks) throw new RankingsError(reason, fields);
     }
   }
   return {...mapRankings(ranks.rows, players, rosters), source: 'FantasyPros', type: 'ROS', scoring,
