@@ -125,6 +125,6 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
   return {league: Object.fromEntries(['league_id', 'name', 'season', 'total_rosters'].map(k => [k, league[k]])),
     scoring: league.scoring_settings?.rec === .5 ? 'Half PPR' : `${league.scoring_settings?.rec || 0} PPR`,
     teams, players: ratings, proposals, epoch, engine_version: ENGINE_VERSION,
-    recommendations: rankings ? {source: rankings.source, type: rankings.type, scoring: rankings.scoring, fetched_at: rankings.fetched_at, published_at: rankings.published_at, coverage: rankings.coverage, status: 'ready'} : {source: null, status: 'unavailable'},
+    recommendations: rankings ? {source: rankings.source, type: rankings.type, scoring: rankings.scoring, fetched_at: rankings.fetched_at, published_at: rankings.published_at, coverage: rankings.coverage, via: rankings.via, status: 'ready'} : {source: null, status: 'unavailable'},
     completed_weeks: weeks.length, updated_at: new Date().toISOString()};
 }

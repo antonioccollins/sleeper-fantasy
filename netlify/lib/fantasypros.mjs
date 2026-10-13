@@ -3,7 +3,7 @@ const base = 'https://api.fantasypros.com/public/v2/json';
 const positions = new Set(['QB', 'RB', 'WR', 'TE']);
 export const RANK_CACHE_MS = 6 * 3600000;
 export const RANK_MAX_AGE_MS = 36 * 3600000;
-export const RANKINGS_VERSION = 3;
+export const RANKINGS_VERSION = 4;
 const MAX_PUBLICATION_AGE_MS = 7 * 86400000;
 export class RankingsError extends Error {
   constructor(reason, fields = [], counts = null) { super('FantasyPros rankings unavailable.'); this.reason = reason; this.fields = fields; this.counts = counts; }
@@ -44,6 +44,42 @@ export function parseRankings(data, season, scoring, position = 'ALL', now = Dat
   // Position ranks, when absent, are derived from the full list, never league rosters.
   for (const pos of positions) rows.filter(p => p.position === pos).sort((a, b) => a.rank - b.rank).forEach((p, i) => { p.position_rank ||= i + 1; });
   return {rows, published_at: new Date(published).toISOString()};
+}
+
+export function parsePublishedRankings(html, season, scoring, position = 'ALL', now = Date.now()) {
+  // The public page publishes the same ranking object as a JSON literal.
+  // Read the literal only: never execute HTML, inline scripts, or provider code.
+  const marker = /\b(?:var|let|const)\s+ecrData\s*=\s*/g.exec(html);
+  const start = marker ? marker.index + marker[0].length : -1;
+  if (start < 0 || html[start] !== '{') throw new RankingsError('public_page_format');
+  let depth = 0, quoted = false, escaped = false;
+  for (let i = start; i < html.length; i++) {
+    const char = html[i];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') quoted = false;
+    } else if (char === '"') quoted = true;
+    else if (char === '{') depth++;
+    else if (char === '}' && --depth === 0) {
+      let data;
+      try { data = JSON.parse(html.slice(start, i + 1)); }
+      catch { throw new RankingsError('public_page_format'); }
+      return parseRankings(data, season, scoring, position, now);
+    }
+  }
+  throw new RankingsError('public_page_format');
+}
+
+async function readPublishedRankings(season, scoring, fetcher, now) {
+  const slug = {STD: 'ros-overall.php', HALF: 'ros-half-point-ppr-overall.php', PPR: 'ros-ppr-overall.php'}[scoring];
+  const response = await fetcher(`https://www.fantasypros.com/nfl/rankings/${slug}`, {
+    headers: {Accept: 'text/html'}, redirect: 'error', signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new RankingsError('public_page_unavailable');
+  const html = await response.text();
+  if (html.length > 5000000) throw new RankingsError('public_page_format');
+  return parsePublishedRankings(html, season, scoring, 'ALL', now);
 }
 const normalized = name => String(name).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g, '').replace(/[^a-z0-9]/g, '');
 export function mapRankings(rows, players, rosters) {
@@ -94,7 +130,18 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
         }
         return parseRankings(await response.json(), league.season, scoring, position, now);
       };
-      const all = await read('ALL');
+      let all, via = 'api';
+      try { all = await read('ALL'); }
+      catch (error) {
+        if (!(error instanceof RankingsError) || error.reason !== 'incomplete_rankings') throw error;
+        // A sample API list cannot value the league. Use only the full ranking
+        // JSON already published on the unauthenticated ROS page, if available.
+        try { all = await readPublishedRankings(league.season, scoring, fetcher, now); via = 'public_page'; }
+        catch (pageError) {
+          error.fields.push(pageError instanceof RankingsError ? pageError.reason : 'public_page_unavailable');
+          throw error;
+        }
+      }
       if (all.rows.filter(p => p.position === 'QB').length < 12) {
         const qb = await read('QB');
         // Positional QB rankings supplement fit; ALL alone establishes market values.
@@ -102,7 +149,7 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
         if (!all.rows.some(p => p.position === 'QB')) throw new RankingsError('incomplete_rankings', ['no_qbs_in_overall'], {position: 'ALL', received: all.rows.length, qb_received: qb.rows.length});
       }
       mapRankings(all.rows, players, rosters);
-      const next = {...all, season: String(league.season), scoring, fetched_at: now};
+      const next = {...all, season: String(league.season), scoring, fetched_at: now, via};
       await store.setJSON(cacheKey, next);
       ranks = next;
       await store.setJSON(failureKey, {until: 0});
@@ -115,5 +162,5 @@ export async function getRankings(store, league, players, rosters, {apiKey = pro
     }
   }
   return {...mapRankings(ranks.rows, players, rosters), source: 'FantasyPros', type: 'ROS', scoring,
-    fetched_at: new Date(ranks.fetched_at).toISOString(), published_at: ranks.published_at};
+    fetched_at: new Date(ranks.fetched_at).toISOString(), published_at: ranks.published_at, via: ranks.via};
 }

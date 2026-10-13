@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getRankings, mapRankings, parseRankings, rankingFormat, RANK_MAX_AGE_MS, RANK_CACHE_MS } from '../netlify/lib/fantasypros.mjs';
+import { getRankings, mapRankings, parseRankings, parsePublishedRankings, rankingFormat, RANK_MAX_AGE_MS, RANK_CACHE_MS } from '../netlify/lib/fantasypros.mjs';
 import { generate, tradeValue } from '../netlify/lib/engine.mjs';
 import { createHandler } from '../netlify/lib/api.mjs';
 import { refreshLeague } from '../netlify/lib/league.mjs';
@@ -65,6 +65,28 @@ test('parser upgrades ignore the old unavailable snapshot and provider cooldown 
   await store.setJSON('fantasypros/v1/nfl/2026/ROS/HALF/retry',{until:now+15*60000,reason:'incompatible_response'});
   const ranks=await getRankings(store,league,players,rosters,{apiKey:'test-secret',fetcher:async()=>{calls++;return ok(responseData());},now});
   assert.equal(calls,1);assert.equal(ranks.type,'ROS');
+});
+test('public ROS page supplies a full validated list when the API returns only a sample',async()=>{
+  const store=new Store(),{players,rosters}=inputs();const calls=[];
+  const full=responseData();full.players[0].player_name='Brace } and \"quoted\" text';
+  const sample={...responseData(),players:responseData().players.slice(0,10)};
+  const fetcher=async(url,options)=>{
+    calls.push(String(url));
+    if(String(url).startsWith('https://api.fantasypros.com/'))return ok(sample);
+    assert.equal(String(url),'https://www.fantasypros.com/nfl/rankings/ros-half-point-ppr-overall.php');
+    assert.equal(options.headers['x-api-key'],undefined);
+    return new Response('<html><script>var ecrData = '+JSON.stringify(full)+'; throw new Error("must not execute");</script></html>');
+  };
+  const ranks=await getRankings(store,league,players,rosters,{apiKey:'test-secret',fetcher,now});
+  assert.equal(ranks.via,'public_page');assert.equal(ranks.coverage,100);assert.equal(calls.length,2);
+  assert.ok(!JSON.stringify([...store.data]).includes('test-secret'));
+  await getRankings(store,league,players,rosters,{apiKey:'test-secret',fetcher,now:now+1000});
+  assert.equal(calls.length,2);
+});
+test('public page parser rejects wrong ranking sets, stale dates, login pages and executable expressions',()=>{
+  const embed=d=>'<script>var ecrData = '+JSON.stringify(d)+';</script>';
+  for(const patch of [{year:'2025'},{scoring:'STD'},{ranking_type_name:'DRAFT'},{last_updated_ts:now/1000-8*86400},{players:responseData().players.slice(0,10)}])assert.throws(()=>parsePublishedRankings(embed({...responseData(),...patch}),'2026','HALF','ALL',now));
+  for(const html of ['<html>Please sign in</html>','var ecrData = (() => { return {}; })();','var ecrData = {bad: code()};'])assert.throws(()=>parsePublishedRankings(html,'2026','HALF','ALL',now),e=>e.reason==='public_page_format');
 });
 test('joins independent provider IDs using Yahoo identity or unambiguous normalized name and position',()=>{
   const rows=[{id:'999',yahoo_id:'17',name:'Different spelling',position:'WR',rank:2},{id:'888',name:'D.J. Moore Jr.',position:'WR',rank:4},{id:'777',name:'Duplicate',position:'RB',rank:5},{id:'776',name:'Duplicate',position:'RB',rank:6}];
