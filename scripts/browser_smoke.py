@@ -3,6 +3,7 @@
 Requires Playwright and Chromium. No real manager votes are modified.
 """
 import json
+from datetime import datetime, timezone
 import os
 import re
 from pathlib import Path
@@ -29,7 +30,11 @@ def run():
     with tempfile.TemporaryDirectory(prefix="trade-match-browser-") as tmp:
         temp = Path(tmp)
         if not external:
-            shutil.copy(ROOT/".data/model.json",temp/"model.json")
+            # Offline UI fixtures need a current clock to exercise voting.
+            # Production freshness guards and the original snapshot stay intact.
+            fixture=json.loads((ROOT/".data/model.json").read_text())
+            fixture['updated_at']=datetime.now(timezone.utc).isoformat()
+            (temp/"model.json").write_text(json.dumps(fixture))
         server_env={**os.environ,"DATA_DIR":str(temp),"AUTO_SYNC":"0","PORT":"8017"}
         with (temp/"server.log").open("w") as log:
             server=None if external else subprocess.Popen([str(ROOT/".venv/bin/gunicorn"),"--bind","127.0.0.1:8017","--workers","1","--threads","8","app:application"],cwd=ROOT,env=server_env,stdout=log,stderr=log)

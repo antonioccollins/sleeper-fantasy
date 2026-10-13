@@ -67,6 +67,14 @@ function renderCard() {
   card.style.transform = '';
   const p = state.deck[0];
   card.dataset.proposalId = p?.id || '';
+  $('#trade-partner').hidden = !p || !state.team;
+  if (p && state.team) {
+    $('#partner-avatar').textContent = initials(p.partner.name);
+    $('#partner-name').textContent = p.partner.name;
+    card.setAttribute('aria-labelledby', 'partner-name');
+  } else {
+    card.removeAttribute('aria-labelledby');
+  }
   const disabled = state.busy || !p || !state.team || state.boot?.stale;
   $('#pass-button').disabled = disabled;
   $('#like-button').disabled = disabled;
@@ -81,8 +89,7 @@ function renderCard() {
   }
   const drops = p.drops.length ? `<p class="drop-note">Extra roster spot needed. Suggested drop: ${p.drops.map(v=>escape(v.name)).join(', ')}.</p>` : '';
   const partnerDrops = p.partner_drops.length ? '<p class="drop-note">Your partner needs an extra roster spot.</p>' : '';
-  card.innerHTML = `<header class="card-header"><div class="card-teams"><div class="partner-avatar">${escape(initials(p.partner.name))}</div><h2>${escape(p.partner.name)}</h2></div></header>
-    <div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
+  card.innerHTML = `<div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
     ${drops || partnerDrops ? `<div class="card-bottom">${drops}${partnerDrops}</div>` : ''}`;
 }
 function renderTeam() {

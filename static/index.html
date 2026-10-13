@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#202124">
+  <meta name="color-scheme" content="dark">
   <meta name="description" content="Swipe on fantasy football trades and match with other managers in your league.">
   <title>Trade Match · Super Bowl Bound</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -30,6 +31,7 @@
         <div class="discovery-layout">
           <div class="deck-area">
             <div class="deck-toolbar"><div class="filter-pills" aria-label="Trade type"><button class="selected" data-kind="all" aria-pressed="true">All trades</button><button data-kind="1-for-1" aria-pressed="false">1 for 1</button><button data-kind="1-for-2" aria-pressed="false">2 for 1</button><button data-kind="2-for-2" aria-pressed="false">2 for 2</button></div></div>
+            <div id="trade-partner" class="trade-partner" hidden><span id="partner-avatar" class="partner-avatar"></span><h2 id="partner-name"></h2><span class="partner-swap" data-icon="swap"></span></div>
             <div class="card-stack"><article id="trade-card" class="trade-card" aria-live="polite"><div class="empty-state"><span class="loading-dot"></span><h2>Loading…</h2></div></article></div>
             <div class="swipe-actions"><button id="pass-button" class="swipe-button pass" aria-label="Pass on this trade"><span data-icon="x"></span></button><button id="undo-button" class="undo-button" aria-label="Undo your last swipe" disabled><span data-icon="undo"></span></button><button id="like-button" class="swipe-button like" aria-label="Like this trade"><span data-icon="heart"></span></button></div>
           </div>
