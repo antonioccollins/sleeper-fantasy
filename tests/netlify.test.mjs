@@ -144,21 +144,28 @@ test('trade engine generates stable, unique, owned, balanced proposals across sh
   const players={},rosters=[];
   for(let team=1;team<=3;team++) {
     const ids=[];
-    ['QB','RB','RB','WR','WR','TE','WR','RB'].forEach((pos,i)=>{const id=`${team}-${i}`;ids.push(id);players[id]={player_id:id,full_name:id,position:pos,team:'BUF',search_rank:i*3+team};});
+    ['QB','RB','RB','WR','WR','TE','WR','RB','WR','RB'].forEach((pos,i)=>{const id=`${team}-${i}`;ids.push(id);players[id]={player_id:id,full_name:id,position:pos,team:'BUF',search_rank:i*3+team};});
     rosters.push({roster_id:team,owner_id:String(team),players:ids,reserve:[ids.at(-1)],settings:{}});
   }
   const weeks=Array.from({length:5},()=>[{players_points:Object.fromEntries(Object.keys(players).map(id=>[id,10+(Number(id[0])+Number(id.at(-1)))%5]))}]);
   const league={league_id:'fixture',season:'2026',name:'Fixture',total_rosters:3,roster_positions:['QB','RB','RB','WR','WR','TE','FLEX','BN'],scoring_settings:{rec:.5}};
   const users=[1,2,3].map(i=>({user_id:String(i),display_name:String(i)}));
-  const m=generate(league,rosters,users,players,weeks);
+  const ranks = {};
+  for (const roster of rosters) for (const id of roster.players) {
+    const i = Number(id.at(-1)), team = roster.roster_id, position = players[id].position;
+    const rank = position === 'RB' ? (team === 1 ? 2 + i : 20 + i) : position === 'WR' ? (team === 2 ? 2 + i : 20 + i) : 5 + team;
+    ranks[id] = {rank: rank * 2, position_rank: rank};
+  }
+  const rankingData = {bySleeper: ranks, source: 'FantasyPros', type:'ROS', scoring:'HALF', fetched_at:new Date().toISOString(), published_at:new Date().toISOString(), coverage:100};
+  const m=generate(league,rosters,users,players,weeks,rankingData);
   assert.ok(m.proposals.length>0);
-  assert.deepEqual(m.proposals,generate(league,rosters,users,players,weeks).proposals);
+  assert.deepEqual(m.proposals,generate(league,rosters,users,players,weeks,rankingData).proposals);
   assert.equal(new Set(m.proposals.map(p=>p.id)).size,m.proposals.length);
   for(const p of m.proposals) {
-    assert.ok(Math.abs(p.value_a-p.value_b)/Math.max(p.value_a,p.value_b)<=.185);
+    assert.ok(Math.abs(p.value_a-p.value_b)/Math.max(p.value_a,p.value_b)<=.125);
     for(const [id,key] of [[p.a,'give_a'],[p.b,'give_b']])assert.ok(p[key].every(pid=>rosters[id-1].players.includes(pid)&&!rosters[id-1].reserve.includes(pid)));
   }
-  rosters[0].players.pop();const changed=generate(league,rosters,users,players,weeks);
+  rosters[0].players.pop();const changed=generate(league,rosters,users,players,weeks,rankingData);
   assert.notEqual(m.epoch,changed.epoch);
   assert.ok(!changed.proposals.some(p=>m.proposals.some(old=>old.id===p.id)));
 });

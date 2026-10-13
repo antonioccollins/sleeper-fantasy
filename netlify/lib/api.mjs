@@ -1,11 +1,12 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { getStorage, leagueID, prefix, mutate } from './store.mjs';
 import { getModel } from './league.mjs';
+import { RANK_MAX_AGE_MS } from './fantasypros.mjs';
 
 class APIError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
-const stale = model => !Number.isFinite(Date.parse(model.updated_at)) || Date.now() - Date.parse(model.updated_at) > 3600000;
+const stale = model => !Number.isFinite(Date.parse(model.updated_at)) || Date.now() - Date.parse(model.updated_at) > 3600000 || (model.recommendations && (model.recommendations.status !== 'ready' || !Number.isFinite(Date.parse(model.recommendations.fetched_at)) || Date.now() - Date.parse(model.recommendations.fetched_at) > RANK_MAX_AGE_MS || !Number.isFinite(Date.parse(model.recommendations.published_at)) || Date.now() - Date.parse(model.recommendations.published_at) > 7 * 86400000));
 const emptyLedger = model => ({epoch: model.epoch, model_updated_at: model.updated_at, votes: {}, matches: {}});
 const ledgerKey = `${prefix}/ledger`;
 const response = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), {status, headers: {
@@ -76,10 +77,10 @@ export function createHandler({storage = getStorage, loadModel = getModel} = {})
       }
       const store = storage();
       const model = await loadModel(store);
-      if (path === '/health' && method === 'GET') return response({status: 'ok', league: model.league.name, updated_at: model.updated_at, stale: stale(model)});
+      if (path === '/health' && method === 'GET') return response({status: 'ok', league: model.league.name, updated_at: model.updated_at, stale: stale(model), recommendations: model.recommendations});
       const team = await session(request, model, store);
       if (path === '/api/bootstrap' && method === 'GET') return response({league: model.league, scoring: model.scoring, teams: model.teams,
-        players: model.players, team, updated_at: model.updated_at, stale: stale(model), completed_weeks: model.completed_weeks, epoch: model.epoch});
+        players: model.players, team, updated_at: model.updated_at, stale: stale(model), completed_weeks: model.completed_weeks, epoch: model.epoch, recommendations: model.recommendations});
       if (path === '/api/session' && method === 'POST') {
         const data = await body(request);
         const selected = Number.isInteger(data.team_id) && model.teams.find(t => t.id === data.team_id && t.owner_id);
@@ -103,7 +104,7 @@ export function createHandler({storage = getStorage, loadModel = getModel} = {})
         while ([...buckets.values()].some(bucket => bucket.length)) {
           for (const key of keys) if (buckets.get(key).length) ordered.push(buckets.get(key).shift());
         }
-        return response({proposals: ordered.map(p => decorate(p, team, model)), stale: stale(model)});
+        return response({proposals: stale(model) ? [] : ordered.map(p => decorate(p, team, model)), stale: stale(model), recommendations: model.recommendations});
       }
       const modify = change => mutate(store, ledgerKey, () => emptyLedger(model), value => {
         if (value.epoch !== model.epoch && Date.parse(value.model_updated_at || 0) > Date.parse(model.updated_at)) {
@@ -114,7 +115,7 @@ export function createHandler({storage = getStorage, loadModel = getModel} = {})
         return change(value);
       });
       if (path === '/api/votes' && method === 'POST') {
-        if (stale(model)) throw new APIError(503, 'Roster updates are delayed. Voting is paused until Sleeper reconnects.');
+        if (stale(model)) throw new APIError(503, 'Trade data is unavailable. Voting will resume when updates reconnect.');
         const data = await body(request);
         if (!['like', 'pass'].includes(data.decision)) throw new APIError(400, 'Choose like or pass.');
         const p = model.proposals.find(p => p.id === data.proposal_id && [p.a, p.b].includes(team.id));

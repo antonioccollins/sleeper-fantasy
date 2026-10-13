@@ -13,13 +13,13 @@ A mobile-friendly fantasy trade app for **Super Bowl Bound**. Choose your team, 
    - Build command: **`npm run build`**.
    - Publish directory: **`static`**.
    - Functions directory: **`netlify/functions`**.
-4. Deploy. Node 22 and the locked npm dependencies are configured in the repository. No Python server, paid persistent disk, third-party database, Sleeper password, or API key is needed for this deployment.
+4. Deploy. Node 22 and the locked npm dependencies are configured in the repository. No Python server, paid persistent disk, third-party database, or Sleeper password is needed. In **Project configuration → Environment variables**, add **`FANTASYPROS_API_KEY`**, mark it as a secret, and enable the **Functions** scope for production (and deploy previews if used). Enter the key there, then deploy/redeploy. Never prefix it with a browser-exposed variable name.
 5. Open the HTTPS URL Netlify assigns. The first visit loads the live league and generates its trade deck, which may take a few seconds.
 6. Choose your own team. Have another manager open the **same URL** and choose theirs. Share that URL in the league group chat.
 
 The app uses **site-wide Netlify Blobs** automatically authenticated by Netlify Functions. Votes, matches, and the session signing key persist across cold starts and redeploys of the **same Netlify site**. Different sites and local development have separate storage. Leave the default store name unchanged to retain votes. Your Netlify plan's normal Functions/Blobs usage limits and billing apply; this app does not provision another paid service.
 
-No public Netlify deployment or website URL is created just by adding this configuration. Connect the repository and deploy in your Netlify account. No custom environment variables are required for Super Bowl Bound. To use another supported league, set `SLEEPER_LEAGUE_ID` in Netlify's environment settings and redeploy; this also selects separate league storage.
+No public Netlify deployment or website URL is created just by adding this configuration. Connect the repository and deploy in your Netlify account. The FantasyPros key is required for recommendations. Without usable rankings the website still loads teams and saved matches, but pauses the trade deck; it never falls back to the retired Sleeper valuation engine. To use another supported league, set `SLEEPER_LEAGUE_ID` in Netlify's environment settings and redeploy; this also selects separate league storage.
 
 ## Local preview
 
@@ -30,13 +30,13 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:8888** and choose your team. The official Netlify CLI runs the same static site, Functions, and a sandbox Blobs service. It needs no Netlify login with this offline local configuration; it still needs Internet access to fetch Sleeper data. Local data is stored under ignored `.netlify/` and never writes to the deployed site's votes.
+Open **http://localhost:8888** and choose your team. The official Netlify CLI runs the same static site, Functions, and a sandbox Blobs service. It needs no Netlify login with this offline local configuration; it still needs Internet access to Sleeper and FantasyPros. Supply `FANTASYPROS_API_KEY` through your environment or an ignored `.env` file; `.env.example` lists the name without a value. Local data is stored under ignored `.netlify/` and never writes to the deployed site's votes.
 
 The app uses Node Functions and no Edge Functions. In cloud development environments where the CLI cannot download its unrelated Deno/Edge runtime, local validation can use `npm run dev -- --internal-disable-edge-functions`; this CLI diagnostic option is unnecessary for the deployed website. Preserve platform proxy and TLS trust. On this cloud machine's Node 24 runtime, `NODE_USE_ENV_PROXY=1` enables its supplied proxy for live API requests.
 
 ## Data, votes, and matches
 
-- The API reads real Sleeper league settings, teams, rosters, player metadata, and completed weekly scores.
+- The API reads real Sleeper league settings, teams, rosters, and player metadata. [FantasyPros](https://api.fantasypros.com/public/v2/docs) provides NFL rest-of-season expert consensus rankings for the Sleeper league season and standard, half-PPR, or PPR format.
 - A scheduled Netlify Function refreshes production league data roughly every 15 minutes. Visits also refresh a missing/old snapshot, including in deploy previews where scheduled functions don't run. The large player directory is cached for 24 hours.
 - Likes stay private until both managers like identical terms. They see the same proposal ID, with give/get reversed for their own team.
 - Strongly consistent storage and ETag conditional updates prevent lost votes and duplicate matches across simultaneous Function instances. A league refresh lease limits duplicate API fetching.
@@ -48,11 +48,15 @@ As requested, team selection is **not identity-verified**: anyone with the URL c
 
 ## Trade balance
 
-Trade scores are a **transparent heuristic**, not expert market values. The engine uses this league's actual weekly scoring, averages non-zero scored weeks, and blends small samples with a position baseline from Sleeper's search rank. It adjusts for reported injuries, positional scarcity, starter fit, and bench depth.
+FantasyPros **rest-of-season expert consensus rankings** are the primary valuation input, replacing Sleeper search order and recent-game averages. The API request is `GET /public/v2/json/nfl/{league season}/consensus-rankings?type=ROS&scoring=HALF&position=ALL` for Super Bowl Bound. Credentials are sent only in the server-side `x-api-key` header. Rankings must match NFL, the league season, ROS, scoring, and position, and have a publication timestamp no older than seven days. A FantasyPros account/key must permit this endpoint; the app reports safe availability reasons through `/health` without exposing credentials or upstream bodies.
 
-It offers 1-for-1, 2-for-1, and 2-for-2 deals within an 18% value gap, excludes reserve players, limits low-value throw-ins, and accounts for a suggested drop when a package needs an extra roster spot. Cards focus on the players you give and get, with injury flags and any required roster drop. Background scoring and calculation details stay off the swipe screen; a brief explanation is available through the info button.
+Player identities use Yahoo IDs where available, otherwise a unique normalized name plus position. Ambiguous or unmapped players cannot be traded or suggested as drops. At least 70% of rostered offensive players, covering all rostered offensive positions, must match. Rankings are cached privately in Netlify Blobs for six hours, limiting requests to about four refreshes a day per season/scoring format (occasionally a supplementary QB request). An outage can reuse a valid cache for up to 36 hours from its original fetch, without resetting that timestamp. Unavailable, incompatible, insufficiently mapped, or expired rankings pause suggestions and voting. Failures have a 15-minute retry cooldown.
 
-Zero-point games can be omitted along with byes/inactive weeks. Changing roles, news, keeper value, bye strategy, and future projections aren't fully modeled. No draft picks are suggested. Managers should review every deal; a mutual like is interest, not an executed trade.
+**Our trade values are estimates derived from those rankings, not FantasyPros trade-chart prices or point projections.** An exponential value curve protects elite assets, and two-player packages carry a 12% consolidation premium. Accepted deals have at most a 12% adjusted value gap after accounting for roster drops. Both teams must improve under a positional-rank lineup/backup model, without weakening either best starting lineup. Each incoming piece in a 2-for-1 must contribute to the recipient's lineup. Same-position shuffles, weak throw-ins, reserve players, and repetitive proposals are filtered out. A smaller deck is preferable to filling it with implausible deals.
+
+Rankings already incorporate expert expectations about future performance and injuries; we do not additionally halve an injured player's long-term value based on a current Out flag. Injury labels remain visible for managers to review. Cards stay focused on the give/get players; methodology is behind the info button. This version supports ordinary one-QB redraft/keeper leagues with standard/half/PPR scoring. Superflex, two-QB, TE-premium, dynasty values, draft picks, custom scoring adjustments, and individual manager preferences aren't modeled. Mutual interest is not an executed trade.
+
+An engine upgrade invalidates pending votes from the retired model, while retaining saved match terms. Routine ranking refreshes keep proposal IDs stable for identical terms and rosters; a deal must still pass current checks to receive a new vote. Roster, owner, or reserve changes invalidate pending terms.
 
 ## Validation
 
@@ -62,7 +66,7 @@ npm run build
 npx netlify build --offline
 ```
 
-Tests cover independent managers, mirrored terms, exact matches, private likes, concurrent writes and cold instances, undo, historical terms, stale-roster guards, signed sessions, per-team alerts, and the official Blobs emulator's conditional writes. The production build bundles all three Functions and their routes/schedule.
+Tests cover provider request/authentication, ranking metadata and age, caching and cooldowns, identity matching, missing credentials, elite-player protection and mutual lineup benefit, as well as independent managers, mirrored terms, exact matches, private likes, concurrent writes and cold instances, undo, historical terms, stale-roster guards, signed sessions, per-team alerts, and the official Blobs emulator's conditional writes. The production build bundles all three Functions and their routes/schedule.
 
 Optional browser testing requires Python's Playwright package and Chromium. Start the local Netlify runtime with an isolated test store:
 
@@ -80,7 +84,7 @@ The browser test selects two actual league teams in the local sandbox, verifies 
 
 ## Optional Python development server
 
-The original Python/SQLite implementation remains available for local development and self-hosting. It is **not used by Netlify**:
+The original Python/SQLite implementation remains available for local development and self-hosting. It is **not used by Netlify** and retains the original heuristic engine; it does not use FantasyPros. Use `npm run dev` to preview current recommendations:
 
 ```sh
 python3 sync.py

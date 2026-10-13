@@ -43,6 +43,14 @@ function notice(message) {
   $('#global-message').textContent = message || '';
   $('#global-message').hidden = !message;
 }
+function dataNotice(data) {
+  if (data.recommendations?.status === 'unavailable') return 'FantasyPros rankings are unavailable. Trades are paused.';
+  return data.stale ? 'Trade data is out of date. Voting is paused.' : '';
+}
+function updateMethod(data) {
+  const ready = data.recommendations?.source === 'FantasyPros';
+  $('#suggestion-method').textContent = ready ? 'Based on FantasyPros rest-of-season rankings and roster fit. Trade values are our estimates. Submit matches in Sleeper.' : 'Suggestions need current FantasyPros rest-of-season rankings.';
+}
 function empty(title, message='', symbol='cards') {
   return `<div class="empty-state"><span class="empty-symbol">${icon(symbol)}</span><h2>${escape(title)}</h2>${message ? `<p>${escape(message)}</p>` : ''}</div>`;
 }
@@ -68,7 +76,7 @@ function renderCard() {
     return;
   }
   if (!p) {
-    card.innerHTML = empty('No more trades', 'Try another filter or check your likes.');
+    card.innerHTML = state.boot?.stale ? empty('Trades paused') : empty('No more trades', 'Try another filter or check your likes.');
     return;
   }
   const drops = p.drops.length ? `<p class="drop-note">Extra roster spot needed. Suggested drop: ${p.drops.map(v=>escape(v.name)).join(', ')}.</p>` : '';
@@ -91,7 +99,9 @@ async function loadDeck() {
   if (generation !== state.generation || kind !== state.kind) return;
   state.deck = data.proposals;
   state.boot.stale = data.stale;
-  notice(data.stale ? 'Roster data is out of date. Voting is paused.' : '');
+  state.boot.recommendations = data.recommendations;
+  updateMethod(data);
+  notice(dataNotice(data));
   renderCard();
 }
 function teamChoices() {
@@ -120,7 +130,7 @@ async function chooseTeam(id) {
     setView('discover');
     await loadDeck();
     await refreshLists(true);
-    notice(state.boot.stale ? 'Voting is paused until roster data refreshes.' : '');
+    notice(dataNotice(state.boot));
   } catch (error) { toast(error.message); }
   finally { state.busy=false;teamChoices();renderCard(); }
 }
@@ -198,13 +208,15 @@ async function refreshLeague() {
   const data=await api('/api/bootstrap');
   if(generation!==state.generation)return;
   const changed=state.boot.epoch!==data.epoch;
+  const recommendationsChanged=state.boot.stale!==data.stale || state.boot.recommendations?.fetched_at!==data.recommendations?.fetched_at;
   state.boot=data;
   state.team=data.team;
   lastLeagueCheck=Date.now();
   if(!state.team){notice('Choose your team again to reconnect.');renderCard();return;}
   renderTeam();
-  notice(data.stale ? 'Roster data is out of date. Voting is paused.' : '');
-  if(changed){state.lastVote=null;await loadDeck();}
+  updateMethod(data);
+  notice(dataNotice(data));
+  if(changed || recommendationsChanged){state.lastVote=null;await loadDeck();}
   else renderCard();
 }
 async function showMatch(match) {
@@ -239,7 +251,7 @@ async function boot() {
     $('#league-name').textContent=data.league.name;
     $('#league-info').textContent=`${data.league.total_rosters} teams · ${data.scoring}`;
     teamChoices();renderTeam();renderCard();
-    if(data.stale)notice('Roster data is out of date. Voting is paused.');
+    updateMethod(data);notice(dataNotice(data));
     if(state.team){await loadDeck();await refreshLists(true);}
     else $('#team-dialog').showModal();
   } catch(error){notice(error.message);$('#trade-card').innerHTML=empty('Couldn’t load your league','Refresh to try again.');$('#pass-button').disabled=true;$('#like-button').disabled=true;}

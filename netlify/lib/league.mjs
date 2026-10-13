@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { generate } from './engine.mjs';
+import { generate, ENGINE_VERSION } from './engine.mjs';
+import { getRankings, RankingsError } from './fantasypros.mjs';
 import { getStorage, leagueID, prefix, readVersioned } from './store.mjs';
 
 async function read(path) {
@@ -11,7 +12,7 @@ async function read(path) {
 export async function refreshLeague(store = getStorage()) {
   const modelKey = `${prefix}/model`;
   const current = await readVersioned(store, modelKey);
-  if (current && Date.now() - Date.parse(current.data.updated_at) < 900000) return current.data;
+  if (current && fresh(current.data)) return current.data;
   // One refresh per league across instances; a crashed lease expires automatically.
   const leaseKey = `${prefix}/sync-lease`;
   const lease = await readVersioned(store, leaseKey);
@@ -22,11 +23,11 @@ export async function refreshLeague(store = getStorage()) {
     if (acquired.modified && !acquired.etag) throw new Error('Storage did not confirm the refresh lease.');
   }
   if (!acquired.modified) {
-    if (current) return current.data;
+    if (current) return safePrevious(current.data);
     for (let attempt = 0; attempt < 40; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 250));
       const model = await store.get(modelKey, {type: 'json'});
-      if (model) return model;
+      if (model) return safePrevious(model);
     }
     const error = new Error('Your league is loading for the first time. Please refresh in a few seconds.');
     error.status = 503;
@@ -43,16 +44,23 @@ export async function refreshLeague(store = getStorage()) {
       cached = {saved_at: Date.now(), players: await read('players/nfl')};
       await store.setJSON(playerKey, cached);
     }
-    const paths = [`league/${leagueID}/rosters`, `league/${leagueID}/users`, ...Array.from({length: lastWeek}, (_, i) => `league/${leagueID}/matchups/${i + 1}`)];
-    const data = [];
-    for (let i = 0; i < paths.length; i += 4) data.push(...await Promise.all(paths.slice(i, i + 4).map(read)));
-    const model = generate(league, data[0], data[1], cached.players, data.slice(2));
+    const data = await Promise.all([read(`league/${leagueID}/rosters`), read(`league/${leagueID}/users`)]);
+    let rankings = null, reason = null;
+    try { rankings = await getRankings(store, league, cached.players, data[0]); }
+    catch (error) {
+      if (!(error instanceof RankingsError)) throw error;
+      reason = error.reason;
+    }
+    // Completed-week count is informational; past scores no longer price trades.
+    const model = generate(league, data[0], data[1], cached.players, Array.from({length: lastWeek}, () => []), rankings);
+    model.rankings_configured = Boolean(process.env.FANTASYPROS_API_KEY);
+    if (reason) model.recommendations.reason = reason;
     const written = await store.setJSON(modelKey, model, current ? {onlyIfMatch: current.etag} : {onlyIfNew: true});
     if (written.modified && !written.etag) throw new Error('Storage did not confirm the league snapshot.');
     return written.modified ? model : await store.get(modelKey, {type: 'json'});
   } catch (error) {
-    console.error('Sleeper refresh failed:', error.name);
-    if (current) return current.data;
+    console.error('League refresh failed:', error.name);
+    if (current) return safePrevious(current.data);
     const unavailable = new Error('Sleeper is unavailable. Please try again shortly.');
     unavailable.status = 503;
     unavailable.public = true;
@@ -64,6 +72,14 @@ export async function refreshLeague(store = getStorage()) {
 
 export async function getModel(store = getStorage()) {
   const model = await store.get(`${prefix}/model`, {type: 'json'});
-  if (!model || Date.now() - Date.parse(model.updated_at) > 900000) return refreshLeague(store);
+  if (!model || !fresh(model)) return refreshLeague(store);
   return model;
+}
+
+function fresh(model) {
+  return model.engine_version === ENGINE_VERSION && model.rankings_configured === Boolean(process.env.FANTASYPROS_API_KEY) && Date.now() - Date.parse(model.updated_at) < 900000;
+}
+function safePrevious(model) {
+  // Never keep serving the retired scoring engine during a failed migration.
+  return model.engine_version === ENGINE_VERSION ? model : {...model, proposals: [], recommendations: {source: null, status: 'unavailable', reason: 'awaiting_rankings'}};
 }
