@@ -256,7 +256,13 @@ async function refreshLeague() {
 async function showMatch(match) {
   state.announced.add(match.id);
   $('#match-partner').textContent=match.partner.name;
-  $('#match-terms').innerHTML=terms(match);
+  const partner=state.boot.teams.find(t=>t.id===match.partner.id) || match.partner;
+  for(const [id,team] of [['match-your-avatar',state.team],['match-their-avatar',partner]]) {
+    const avatar=document.getElementById(id);
+    avatar.innerHTML=teamAvatar(team);
+    avatar.setAttribute('aria-label',team.name);
+  }
+  $('#match-terms').innerHTML=`<div class="match-deal"><section class="match-side match-give"><h3>You give</h3>${match.give.map(playerRow).join('')}</section><section class="match-side match-get"><h3>You get</h3>${match.receive.map(playerRow).join('')}</section></div>`;
   if(!$('#match-dialog').open) $('#match-dialog').showModal();
   try {await api(`/api/matches/${match.id}`,{method:'POST',body:'{}'});}
   catch(error){toast('Your match is saved. The alert will stay unread until you reconnect.');}

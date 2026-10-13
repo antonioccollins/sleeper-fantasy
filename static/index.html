@@ -58,7 +58,13 @@
   </dialog>
   <dialog id="how-dialog"><button class="dialog-close" data-close="how-dialog" aria-label="Close">×</button><h2>TradeBlock</h2><p>Like a trade. If the other manager likes it too, you both get a match.</p><details class="method-note"><summary>About the suggestions</summary><p id="suggestion-method">Suggestions need current FantasyPros rest-of-season rankings.</p><p>Anyone with this link can choose a team.</p></details></dialog>
   <dialog id="roster-dialog"><button class="dialog-close" data-close="roster-dialog" aria-label="Close">×</button><h2 id="roster-title">Your roster</h2><div id="roster-list"></div></dialog>
-  <dialog id="match-dialog" class="match-dialog"><button class="dialog-close" data-close="match-dialog" aria-label="Close">×</button><div class="match-icon" data-icon="heart"></div><h2>It’s a match!</h2><p id="match-partner"></p><div id="match-terms"></div><p class="match-next">Arrange the trade in Sleeper.</p><button id="match-open-button" class="primary-button">View matches</button></dialog>
+  <dialog id="match-dialog" class="match-dialog" aria-labelledby="match-title" aria-describedby="match-partner">
+    <button class="dialog-close" data-close="match-dialog" aria-label="Close">×</button>
+    <div class="match-teams"><span id="match-your-avatar" class="team-avatar match-team-avatar" role="img"></span><span class="action-circle match-seal" data-icon="heart" aria-hidden="true"></span><span id="match-their-avatar" class="team-avatar match-team-avatar" role="img"></span></div>
+    <h2 id="match-title" tabindex="-1" autofocus>It’s a match!</h2><p id="match-partner"></p>
+    <div id="match-terms"></div><p class="match-next">Make it official in Sleeper.</p>
+    <button id="match-open-button" class="primary-button">View matches<span data-icon="arrow"></span></button>
+  </dialog>
   <div id="toast" role="status" class="toast" hidden></div>
 </body>
 </html>
