@@ -82,7 +82,7 @@ export async function getModel(store = getStorage()) {
 }
 
 function fresh(model) {
-  return model.engine_version === ENGINE_VERSION && model.rankings_version === RANKINGS_VERSION && model.rankings_configured === Boolean(process.env.FANTASYPROS_API_KEY) && Date.now() - Date.parse(model.updated_at) < 900000;
+  return model.engine_version === ENGINE_VERSION && model.teams?.every(t => Object.hasOwn(t, 'avatar')) && model.rankings_version === RANKINGS_VERSION && model.rankings_configured === Boolean(process.env.FANTASYPROS_API_KEY) && Date.now() - Date.parse(model.updated_at) < 900000;
 }
 function safePrevious(model) {
   // Never keep serving the retired scoring engine during a failed migration.

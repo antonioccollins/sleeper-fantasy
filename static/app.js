@@ -67,12 +67,22 @@ function playerRow(p) {
   const logo = nflTeams.has(team) ? `https://sleepercdn.com/images/team_logos/nfl/${team.toLowerCase()}.png` : null;
   return `<div class="player" data-player-id="${escape(p.id)}"><div class="player-headshot"><span aria-hidden="true">${escape(initials(p.name))}</span>${photo ? `<img src="${photo}" alt="" width="96" height="96" decoding="async" draggable="false" referrerpolicy="no-referrer">` : ''}</div><div class="player-info"><strong>${escape(p.name)}</strong><small><span>${escape(p.position)} · ${escape(p.nfl_team)}</span>${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div><div class="nfl-logo" aria-hidden="true">${logo ? `<img src="${logo}" alt="" width="48" height="48" decoding="async" draggable="false" referrerpolicy="no-referrer">` : ''}</div></div>`;
 }
+function teamAvatar(team) {
+  const fallback = `<span class="avatar-initials">${escape(initials(team.name))}</span>`;
+  const avatar = typeof team.avatar === 'string' && team.avatar.startsWith('https://sleepercdn.com/') ? team.avatar : null;
+  return fallback + (avatar ? `<img class="team-avatar-image" src="${escape(avatar)}" alt="" width="48" height="48" decoding="async" draggable="false" referrerpolicy="no-referrer">` : '');
+}
 // A missing portrait leaves initials; a missing logo leaves the team abbreviation.
 document.addEventListener('error', event => {
   if (event.target.matches?.('.player-headshot img, .nfl-logo img')) event.target.hidden = true;
+  if (event.target.matches?.('.team-avatar-image')) {
+    event.target.hidden = true;
+    event.target.previousElementSibling.hidden = false;
+  }
 }, true);
 document.addEventListener('load', event => {
   if (event.target.matches?.('.player-headshot img')) event.target.parentElement.classList.add('photo-loaded');
+  if (event.target.matches?.('.team-avatar-image')) event.target.previousElementSibling.hidden = true;
 }, true);
 function names(players) { return players.map((p) => escape(p.name)).join('<br>'); }
 function terms(proposal) {
@@ -103,12 +113,12 @@ function renderCard() {
   const partnerDrops = p.partner_drops.length ? '<p class="drop-note">Your partner needs an extra roster spot.</p>' : '';
   const partner = state.boot.teams.find(t => t.id === p.partner.id);
   const record = partner ? `${partner.wins} – ${partner.losses}${partner.ties ? ` – ${partner.ties}` : ''}` : '';
-  card.innerHTML = `<header class="trade-partner" id="trade-partner"><span class="partner-avatar" id="partner-avatar">${escape(initials(p.partner.name))}</span><div class="partner-info"><h2 id="partner-name">${escape(p.partner.name)}</h2>${record ? `<span class="partner-record">${escape(record)}</span>` : ''}</div><span class="trade-type">${p.give.length} for ${p.receive.length}</span></header><div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
+  card.innerHTML = `<header class="trade-partner" id="trade-partner"><span class="partner-avatar" id="partner-avatar">${teamAvatar(partner || p.partner)}</span><div class="partner-info"><h2 id="partner-name">${escape(p.partner.name)}</h2>${record ? `<span class="partner-record">${escape(record)}</span>` : ''}</div><span class="trade-type">${p.give.length} for ${p.receive.length}</span></header><div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
     ${drops || partnerDrops ? `<div class="card-bottom">${drops}${partnerDrops}</div>` : ''}`;
 }
 function renderTeam() {
   if (!state.team) return;
-  $('#my-avatar').textContent = initials(state.team.name);
+  $('#my-avatar').innerHTML = teamAvatar(state.team);
   $('#my-team-name').textContent = state.team.name;
   $('#my-manager').textContent = `${state.team.manager} · ${state.team.wins}–${state.team.losses}`;
   $('#team-switch').title = state.team.name;
@@ -128,7 +138,7 @@ async function loadDeck() {
 function teamChoices() {
   $('#team-picker-title').textContent = state.team ? 'Switch team' : 'Choose your team';
   $('#team-picker-league-name').textContent = state.boot.league.name;
-  $('#team-grid').innerHTML = state.boot.teams.filter(t=>t.owner_id).map((t,i) => `<button class="team-choice ${state.team?.id === t.id ? 'selected' : ''}" data-team="${t.id}" aria-pressed="${state.team?.id === t.id}"><span class="team-avatar team-tone-${i%5}" aria-hidden="true">${escape(initials(t.name))}</span><span class="team-choice-name"><strong>${escape(t.name)}</strong><small>${escape(t.manager)}</small></span><span class="team-choice-indicator" aria-hidden="true">${icon(state.team?.id === t.id ? 'check' : 'chevron')}</span></button>`).join('');
+  $('#team-grid').innerHTML = state.boot.teams.filter(t=>t.owner_id).map((t,i) => `<button class="team-choice ${state.team?.id === t.id ? 'selected' : ''}" data-team="${t.id}" aria-pressed="${state.team?.id === t.id}"><span class="team-avatar team-tone-${i%5}" aria-hidden="true">${teamAvatar(t)}</span><span class="team-choice-name"><strong>${escape(t.name)}</strong><small>${escape(t.manager)}</small></span><span class="team-choice-indicator" aria-hidden="true">${icon(state.team?.id === t.id ? 'check' : 'chevron')}</span></button>`).join('');
   $('#team-dialog-close').hidden = !state.team;
   $('#team-grid').querySelectorAll('[data-team]').forEach(button => button.addEventListener('click', () => chooseTeam(Number(button.dataset.team))));
 }
@@ -290,7 +300,7 @@ function closeMenus() { $$('#settings-dialog[open], #profile-dialog[open], #leag
 function openLeague() {
   if (!state.boot) return;
   closeMenus();
-  $('#league-teams').innerHTML = state.boot.teams.map(t=>`<div class="roster-row"><span class="team-avatar">${escape(initials(t.name))}</span><div><strong>${escape(t.name)}</strong><small>${escape(t.manager)}</small></div><span class="league-record">${t.wins}–${t.losses}${t.ties ? `–${t.ties}` : ''}</span></div>`).join('');
+  $('#league-teams').innerHTML = state.boot.teams.map(t=>`<div class="roster-row"><span class="team-avatar">${teamAvatar(t)}</span><div><strong>${escape(t.name)}</strong><small>${escape(t.manager)}</small></div><span class="league-record">${t.wins}–${t.losses}${t.ties ? `–${t.ties}` : ''}</span></div>`).join('');
   $('#league-dialog').showModal();
 }
 $('#settings-button').addEventListener('click',()=>$('#settings-dialog').showModal());

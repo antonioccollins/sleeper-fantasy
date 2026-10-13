@@ -53,7 +53,7 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
   const teams = rosters.map(r => {
     const owner = owners[r.owner_id] || {};
     return {id: r.roster_id, owner_id: r.owner_id || null, name: owner.metadata?.team_name || owner.display_name || `Team ${r.roster_id}`,
-      manager: owner.display_name || 'Unclaimed', wins: r.settings?.wins || 0, losses: r.settings?.losses || 0, ties: r.settings?.ties || 0,
+      manager: owner.display_name || 'Unclaimed', avatar: teamAvatarURL(owner.metadata?.avatar), wins: r.settings?.wins || 0, losses: r.settings?.losses || 0, ties: r.settings?.ties || 0,
       players: [...(r.players || [])].sort(), reserve: r.reserve || []};
   }).sort((a, b) => a.id - b.id);
   const epoch = digest([PROPOSAL_VERSION, teams.map(t => [t.id, t.owner_id, t.players, t.reserve])]).slice(0, 16);
@@ -134,4 +134,12 @@ export function generate(league, rosters, users, players, weeks = [], rankings =
     teams, players: ratings, proposals, epoch, engine_version: ENGINE_VERSION,
     recommendations: rankings ? {source: rankings.source, type: rankings.type, scoring: rankings.scoring, fetched_at: rankings.fetched_at, published_at: rankings.published_at, coverage: rankings.coverage, via: rankings.via, status: 'ready'} : {source: null, status: 'unavailable'},
     completed_weeks: weeks.length, updated_at: new Date().toISOString()};
+}
+
+function teamAvatarURL(value) {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'sleepercdn.com' && !url.username && !url.password && !url.port ? url.href : null;
+  } catch { return null; }
 }

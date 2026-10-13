@@ -400,3 +400,6 @@ body.discover-mode .empty-state { min-height: 420px; }
   #team-dialog-close { top: calc(20px + env(safe-area-inset-top)); }
   #team-grid { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
 }
+
+.team-avatar, .partner-avatar { position: relative; overflow: hidden; }
+.team-avatar-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
