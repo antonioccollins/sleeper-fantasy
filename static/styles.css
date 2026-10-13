@@ -363,3 +363,40 @@ body.discover-mode .empty-state { min-height: 420px; }
   .action-circle { width: 56px; height: 56px; }
   .action-control { gap: 6px; }
 }
+
+/* A focused welcome screen, also used when switching teams. */
+#team-dialog { width: min(460px, calc(100vw - 40px)); max-height: min(860px, 92dvh); padding: 0; overflow: hidden; border: 1px solid #2a2b36; border-radius: 28px; background: #0d0e14; }
+#team-dialog[open] { display: flex; flex-direction: column; }
+#team-dialog::backdrop { background: #07080be6; }
+.team-picker-header { position: relative; flex-shrink: 0; padding: 26px 24px 20px; }
+.team-picker-brand { display: flex; align-items: center; gap: 9px; color: #f5f3f9; font-size: 22px; font-weight: 650; letter-spacing: -.6px; }
+.team-picker-brand .brand-mark svg { width: 27px; height: 27px; }
+#team-picker-title { margin: 28px 0 8px; font-size: 27px; font-weight: 600; letter-spacing: -.8px; line-height: 1.2; outline: none; }
+.team-picker-league { display: flex; align-items: center; gap: 7px; margin: 0; color: #a491c1; font-size: 12px; line-height: 1.4; text-transform: capitalize; }
+.team-picker-league svg { width: 15px; height: 15px; }
+#team-dialog-close { top: 23px; right: 22px; display: grid; margin: 0; background: #1d1d27; color: #aaa6b6; }
+#team-grid { display: flex; flex-direction: column; gap: 0; min-height: 0; padding: 0 16px 20px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #34313f transparent; }
+#team-dialog .team-choice { flex-shrink: 0; width: 100%; min-height: 64px; gap: 12px; padding: 11px 9px; border: 1px solid transparent; border-bottom-color: #ffffff09; border-radius: 0; background: transparent; transition: background .15s, border-color .15s; }
+#team-dialog .team-choice:last-child { border-bottom-color: transparent; }
+#team-dialog .team-choice:hover { border-radius: 12px; background: #191622; }
+#team-dialog .team-choice:active { background: #251d34; }
+#team-dialog .team-choice:focus-visible { outline: 2px solid #ab75ef; outline-offset: -2px; border-radius: 12px; }
+#team-dialog .team-choice.selected { border-color: #7652a5; border-radius: 12px; background: #231b30; }
+#team-dialog .team-avatar { width: 38px; height: 38px; border: 1px solid #ffffff0a; font-size: 12px; font-weight: 600; }
+#team-dialog .team-tone-0 { background: #2c223d; color: #cbb0f3; }
+#team-dialog .team-tone-1 { background: #1e3033; color: #9ccdc4; }
+#team-dialog .team-tone-2 { background: #34262a; color: #ddb1bd; }
+#team-dialog .team-tone-3 { background: #2c2e3e; color: #b1bee9; }
+#team-dialog .team-tone-4 { background: #322b22; color: #d8c09a; }
+.team-choice-name { flex: 1; min-width: 0; }
+#team-dialog .team-choice strong { color: #eae7ef; font-size: 14px; font-weight: 550; line-height: 1.3; letter-spacing: -.15px; overflow-wrap: anywhere; }
+#team-dialog .team-choice small { margin-top: 4px; color: #8f8b9d; font-size: 11px; }
+.team-choice-indicator { color: #666173; flex-shrink: 0; }
+.team-choice-indicator svg { width: 16px; height: 16px; }
+.selected .team-choice-indicator { color: #bd91f4; }
+@media (max-width: 760px) {
+  #team-dialog { inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+  .team-picker-header { padding-top: calc(22px + env(safe-area-inset-top)); }
+  #team-dialog-close { top: calc(20px + env(safe-area-inset-top)); }
+  #team-grid { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+}

@@ -126,7 +126,9 @@ async function loadDeck() {
   renderCard();
 }
 function teamChoices() {
-  $('#team-grid').innerHTML = state.boot.teams.filter(t=>t.owner_id).map((t) => `<button class="team-choice ${state.team?.id === t.id ? 'selected' : ''}" data-team="${t.id}"><span class="team-avatar">${escape(initials(t.name))}</span><span><strong>${escape(t.name)}</strong><small>${escape(t.manager)} · ${t.wins}–${t.losses}</small></span></button>`).join('');
+  $('#team-picker-title').textContent = state.team ? 'Switch team' : 'Choose your team';
+  $('#team-picker-league-name').textContent = state.boot.league.name;
+  $('#team-grid').innerHTML = state.boot.teams.filter(t=>t.owner_id).map((t,i) => `<button class="team-choice ${state.team?.id === t.id ? 'selected' : ''}" data-team="${t.id}" aria-pressed="${state.team?.id === t.id}"><span class="team-avatar team-tone-${i%5}" aria-hidden="true">${escape(initials(t.name))}</span><span class="team-choice-name"><strong>${escape(t.name)}</strong><small>${escape(t.manager)}</small></span><span class="team-choice-indicator" aria-hidden="true">${icon(state.team?.id === t.id ? 'check' : 'chevron')}</span></button>`).join('');
   $('#team-dialog-close').hidden = !state.team;
   $('#team-grid').querySelectorAll('[data-team]').forEach(button => button.addEventListener('click', () => chooseTeam(Number(button.dataset.team))));
 }

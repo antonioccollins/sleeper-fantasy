@@ -47,7 +47,15 @@
   </dialog>
   <dialog id="league-dialog" aria-labelledby="league-name"><button class="dialog-close" data-close="league-dialog" aria-label="Close">×</button><h2 id="league-name">Super Bowl Bound</h2><p id="league-info">Connecting…</p><div id="league-teams" class="league-teams"></div></dialog>
   <dialog id="profile-dialog" aria-labelledby="profile-title"><button class="dialog-close" data-close="profile-dialog" aria-label="Close">×</button><h2 id="profile-title">Your team</h2><button id="team-switch" class="team-switch" aria-label="Change team"><span class="team-avatar" id="my-avatar">?</span><span><strong id="my-team-name">Choose your team</strong><small id="my-manager"></small></span><span data-icon="chevron"></span></button><div class="menu-options"><button id="profile-roster" class="menu-option"><span data-icon="cards"></span>Your roster<span data-icon="chevron"></span></button><button id="profile-matches" class="menu-option"><span data-icon="matches"></span>Matches<span data-icon="chevron"></span></button></div></dialog>
-  <dialog id="team-dialog"><div class="dialog-heading"><h2>Choose your team</h2></div><div id="team-grid" class="team-grid"></div><button id="team-dialog-close" class="text-button" hidden>Cancel</button></dialog>
+  <dialog id="team-dialog" aria-labelledby="team-picker-title">
+    <div class="team-picker-header">
+      <div class="team-picker-brand"><span class="brand-mark" data-icon="brand"></span><span>TradeMatch</span></div>
+      <button id="team-dialog-close" class="dialog-close" aria-label="Cancel team change" hidden>×</button>
+      <h2 id="team-picker-title" tabindex="-1" autofocus>Choose your team</h2>
+      <p class="team-picker-league"><span data-icon="trophy"></span><span id="team-picker-league-name">Super Bowl Bound</span></p>
+    </div>
+    <div id="team-grid" class="team-grid" aria-label="League teams"></div>
+  </dialog>
   <dialog id="how-dialog"><button class="dialog-close" data-close="how-dialog" aria-label="Close">×</button><h2>Trade Match</h2><p>Like a trade. If the other manager likes it too, you both get a match.</p><details class="method-note"><summary>About the suggestions</summary><p id="suggestion-method">Suggestions need current FantasyPros rest-of-season rankings.</p><p>Anyone with this link can choose a team.</p></details></dialog>
   <dialog id="roster-dialog"><button class="dialog-close" data-close="roster-dialog" aria-label="Close">×</button><h2 id="roster-title">Your roster</h2><div id="roster-list"></div></dialog>
   <dialog id="match-dialog" class="match-dialog"><button class="dialog-close" data-close="match-dialog" aria-label="Close">×</button><div class="match-icon" data-icon="heart"></div><h2>It’s a match!</h2><p id="match-partner"></p><div id="match-terms"></div><p class="match-next">Arrange the trade in Sleeper.</p><button id="match-open-button" class="primary-button">View matches</button></dialog>
