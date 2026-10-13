@@ -295,8 +295,9 @@ main { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
 .action-control:active:not(:disabled) .action-circle { transform: scale(.94); }
 .trade-card.drag-left { border-color: #f37d80; }
 .trade-card.drag-right { border-color: #96d771; }
-.trade-card.exit-left { transform: translateX(-85px) rotate(-5deg); }
-.trade-card.exit-right { transform: translateX(85px) rotate(5deg); }
+.trade-card.dragging { transition: border-color .1s; }
+.trade-card.exit-left { transform: translateX(calc(-100% - 24px)) rotate(-8deg); }
+.trade-card.exit-right { transform: translateX(calc(100% + 24px)) rotate(8deg); }
 body.discover-mode .empty-state { min-height: 420px; }
 .menu-label { margin: 0 0 13px; color: var(--muted); font-size: 12px; font-weight: 500; }
 .menu-options { margin-top: 24px; }

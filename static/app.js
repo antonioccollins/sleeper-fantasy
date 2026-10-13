@@ -323,25 +323,45 @@ document.addEventListener('keydown',event=>{
 });
 let pointer=null;
 const card=$('#trade-card');
+const SWIPE_DISTANCE=42;
+function resetSwipe() {
+  pointer=null;
+  card.style.transform='';
+  card.classList.remove('dragging','drag-left','drag-right');
+}
 card.addEventListener('pointerdown',event=>{
-  if(state.busy||!state.deck.length||event.target.closest('details,button,a')||event.button!==0)return;
-  pointer={id:event.pointerId,x:event.clientX,y:event.clientY,dx:0};
+  if(pointer||state.busy||state.boot?.stale||!state.deck.length||event.target.closest('details,button,a')||event.button!==0||!event.isPrimary)return;
+  pointer={id:event.pointerId,x:event.clientX,y:event.clientY,dx:0,dragging:false};
 });
 card.addEventListener('pointermove',event=>{
   if(!pointer||event.pointerId!==pointer.id)return;
   const dx=event.clientX-pointer.x,dy=event.clientY-pointer.y;
-  if(Math.abs(dy)>Math.abs(dx)+12){pointer=null;card.style.transform='';return;}
+  if(!pointer.dragging) {
+    if(Math.max(Math.abs(dx),Math.abs(dy))<6)return;
+    if(Math.abs(dy)>=Math.abs(dx)){resetSwipe();return;}
+    pointer.dragging=true;
+    card.setPointerCapture(event.pointerId);
+    card.classList.add('dragging');
+  }
   pointer.dx=dx;
-  if(Math.abs(dx)>12){card.setPointerCapture(event.pointerId);card.style.transform=`translateX(${dx*.55}px) rotate(${dx*.025}deg)`;card.classList.toggle('drag-right',dx>50);card.classList.toggle('drag-left',dx< -50);}
+  card.style.transform=`translateX(${dx*.95}px) rotate(${Math.max(-10,Math.min(10,dx*.025))}deg)`;
+  card.classList.toggle('drag-right',dx>=SWIPE_DISTANCE);
+  card.classList.toggle('drag-left',dx<=-SWIPE_DISTANCE);
 });
 function endSwipe(event) {
   if(!pointer||event.pointerId!==pointer.id)return;
-  const dx=pointer.dx;pointer=null;card.style.transform='';card.classList.remove('drag-left','drag-right');
+  const {dx,dragging}=pointer;
+  resetSwipe();
   if(card.hasPointerCapture(event.pointerId))card.releasePointerCapture(event.pointerId);
-  if(Math.abs(dx)>85)vote(dx>0?'like':'pass');
+  if(dragging&&Math.abs(dx)>=SWIPE_DISTANCE)vote(dx>0?'like':'pass');
 }
 card.addEventListener('pointerup',endSwipe);
-card.addEventListener('pointercancel',()=>{pointer=null;card.style.transform='';card.classList.remove('drag-left','drag-right');});
+card.addEventListener('pointercancel',resetSwipe);
+card.addEventListener('lostpointercapture',event=>{
+  // Touch starts with implicit capture on the player row/image. Its loss when
+  // capture transfers to the card must not cancel the card's active gesture.
+  if(event.target===card)resetSwipe();
+});
 setInterval(async()=>{
   if(document.hidden||!state.team||state.busy)return;
   try {if(Date.now()-lastLeagueCheck>60000)await refreshLeague();await refreshLists(true);}catch(error){if(error.status===401)notice('Choose your team again to reconnect.');}
