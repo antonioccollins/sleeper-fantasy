@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 .env
 test-results/
+node_modules/
+.netlify/

@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright, expect
 
@@ -21,16 +22,21 @@ OUTPUT = ROOT / "test-results"
 def run():
     OUTPUT.mkdir(exist_ok=True)
     errors=[]
+    external=os.environ.get('SMOKE_BASE_URL')
+    if external and urlsplit(external).hostname not in ('localhost','127.0.0.1'):
+        raise ValueError('Browser smoke tests may only target a local sandbox, never a public deployment.')
+    label='netlify-' if external else ''
     with tempfile.TemporaryDirectory(prefix="trade-match-browser-") as tmp:
         temp = Path(tmp)
-        shutil.copy(ROOT/".data/model.json",temp/"model.json")
+        if not external:
+            shutil.copy(ROOT/".data/model.json",temp/"model.json")
         server_env={**os.environ,"DATA_DIR":str(temp),"AUTO_SYNC":"0","PORT":"8017"}
         with (temp/"server.log").open("w") as log:
-            server=subprocess.Popen([str(ROOT/".venv/bin/gunicorn"),"--bind","127.0.0.1:8017","--workers","1","--threads","8","app:application"],cwd=ROOT,env=server_env,stdout=log,stderr=log)
+            server=None if external else subprocess.Popen([str(ROOT/".venv/bin/gunicorn"),"--bind","127.0.0.1:8017","--workers","1","--threads","8","app:application"],cwd=ROOT,env=server_env,stdout=log,stderr=log)
             try:
-                base="http://127.0.0.1:8017"
+                base=external or "http://127.0.0.1:8017"
                 for _ in range(100):
-                    if server.poll() is not None:
+                    if server and server.poll() is not None:
                         raise RuntimeError((temp/"server.log").read_text())
                     try:
                         with urllib.request.urlopen(base+"/health",timeout=1) as response:
@@ -54,7 +60,7 @@ def run():
                     assert "Tonzcollins" in a.locator('#my-manager').inner_text()
                     deck=a.request.get(base+'/api/deck').json()['proposals']
                     target=deck[0]
-                    a.screenshot(path=str(OUTPUT/'desktop.png'),full_page=True)
+                    a.screenshot(path=str(OUTPUT/(label+'desktop.png')),full_page=True)
                     a.locator('#like-button').click()
                     expect(a.locator('#trade-card')).not_to_have_attribute('data-proposal-id',target['id'])
                     assert not a.locator('#match-dialog').is_visible(), 'One like must not make a match'
@@ -64,7 +70,7 @@ def run():
                     b.locator(f'[data-team="{target["partner"]["id"]}"]').click()
                     expect(b.locator('#trade-card')).to_have_attribute('data-proposal-id',re.compile('.+'))
                     assert b.evaluate('() => document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile horizontal overflow'
-                    b.screenshot(path=str(OUTPUT/'mobile.png'),full_page=True)
+                    b.screenshot(path=str(OUTPUT/(label+'mobile.png')),full_page=True)
                     second_deck=b.request.get(base+'/api/deck').json()['proposals']
                     index=next(i for i,v in enumerate(second_deck) if v['id']==target['id'])
                     assert index<30, 'Shared trade should be discoverable without excessive swiping'
@@ -79,7 +85,7 @@ def run():
                     x=box['x']+box['width']*.25;y=box['y']+70
                     b.mouse.move(x,y);b.mouse.down();b.mouse.move(x+135,y+3,steps=8);b.mouse.up()
                     b.wait_for_selector('#match-dialog[open]')
-                    b.screenshot(path=str(OUTPUT/'match.png'),full_page=True)
+                    b.screenshot(path=str(OUTPUT/(label+'match.png')),full_page=True)
                     a.bring_to_front()
                     a.wait_for_selector('#match-dialog[open]',timeout=20000)
                     assert target['give'][0]['name'] in a.locator('#match-terms').inner_text()
@@ -97,11 +103,12 @@ def run():
                 print('PASS: production server health, desktop/mobile rendering, isolated team sessions, private like, mirrored terms, swipe gesture, mutual alerts for both managers, and match/session persistence after reload.')
                 print('Screenshots:',OUTPUT)
             finally:
-                server.terminate()
-                try:
-                    server.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    server.kill();server.wait()
+                if server:
+                    server.terminate()
+                    try:
+                        server.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        server.kill();server.wait()
 
 
 if __name__=='__main__':
