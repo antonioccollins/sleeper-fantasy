@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173e32">
+  <meta name="description" content="A little chemistry. A better roster. Discover fantasy football trades and match when both managers like the same deal.">
+  <title>Trade Match · Super Bowl Bound</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Trade Match home"><span class="brand-mark">↔</span><span>trade<span class="brand-light">match</span><span class="brand-dot">.</span></span></a>
+      <div class="league-label">YOUR LEAGUE</div>
+      <div class="league-box"><span class="league-icon">🏈</span><div><strong id="league-name">Super Bowl Bound</strong><span id="league-info">Connecting to Sleeper…</span></div><span class="live-dot"></span></div>
+      <nav aria-label="Main navigation">
+        <button class="nav-item active" data-view="discover"><span data-icon="cards"></span>Discover<span class="nav-arrow" data-icon="arrow"></span></button>
+        <button class="nav-item" data-view="likes"><span data-icon="heart"></span>Your likes<span id="likes-count" class="nav-count">0</span></button>
+        <button class="nav-item" data-view="matches"><span data-icon="spark"></span>Matches<span id="matches-count" class="nav-count">0</span></button>
+      </nav>
+      <div class="sidebar-note"><span class="note-star">✦</span><strong>Better together.</strong><p>Find the deal that makes both sides excited.</p><span>YOUR NEXT WIN STARTS HERE</span></div>
+      <button id="team-switch" class="team-switch"><span class="team-avatar" id="my-avatar">?</span><span><strong id="my-team-name">Choose your team</strong><small id="my-manager">Make yourself at home</small></span><span data-icon="chevron"></span></button>
+    </aside>
+    <main>
+      <header class="topbar"><span class="season-tag" id="season-tag">FANTASY FOOTBALL</span><button id="how-button" class="text-button"><span data-icon="info"></span>How it works</button></header>
+      <section class="page-intro"><div><div class="eyebrow"><span></span>GOOD TRADES. GREAT CHEMISTRY.</div><h1 id="page-title">Find your next win<span>.</span></h1><p id="page-description">A little give. A little get. A better team on both sides.</p></div><div class="intro-number"><strong>01</strong><span>ONE DEAL AT A TIME</span></div></section>
+      <div id="global-message" class="notice" hidden></div>
+      <section id="discover-view" class="view">
+        <div class="discovery-layout">
+          <div class="deck-area">
+            <div class="deck-toolbar"><div class="filter-pills" aria-label="Trade type"><button class="selected" data-kind="all">All trades</button><button data-kind="1-for-1">1 for 1</button><button data-kind="1-for-2">2 for 1</button><button data-kind="2-for-2">2 for 2</button></div><span id="deck-counter"></span></div>
+            <div class="card-stack"><div class="stack-layer"></div><article id="trade-card" class="trade-card" aria-live="polite"><div class="empty-state"><span class="loading-dot"></span><h2>Finding your league…</h2><p>Good things are worth a moment.</p></div></article></div>
+            <div class="swipe-actions"><button id="pass-button" class="swipe-button pass" aria-label="Pass on this trade"><span data-icon="x"></span></button><button id="undo-button" class="undo-button" aria-label="Undo your last swipe" disabled><span data-icon="undo"></span></button><button id="like-button" class="swipe-button like" aria-label="Like this trade"><span data-icon="heart"></span></button></div>
+            <p class="swipe-help"><span><kbd>←</kbd> Pass</span><span>Swipe to find your match</span><span>Like <kbd>→</kbd></span></p>
+          </div>
+          <aside class="insights-panel"><div class="mini-title">THE GAME PLAN <span data-icon="arrow"></span></div><h2>Two teams.<br>One good deal.</h2><p>Only a mutual like makes a match. Your choices stay between you and your next trade.</p><div class="steps"><div><span>01</span><p><strong>Find your fit</strong>Explore balanced trades built for your roster.</p></div><div><span>02</span><p><strong>Trust your gut</strong>Pass left. Like right. Keep exploring.</p></div><div><span>03</span><p><strong>Make a match</strong>Both like the same deal? You’ll both know.</p></div></div><div class="roster-note"><span data-icon="shield"></span><div><strong>You’re in control</strong><p>No trade happens automatically. Agree on the details, then submit it in Sleeper.</p></div></div><button id="roster-button" class="text-button">View your roster <span data-icon="arrow"></span></button></aside>
+        </div>
+      </section>
+      <section id="likes-view" class="view" hidden><div id="likes-list" class="trade-list"></div></section>
+      <section id="matches-view" class="view" hidden><div id="matches-list" class="trade-list"></div></section>
+      <footer><span>MADE FOR SUPER BOWL BOUND</span><span id="sync-status">Powered by Sleeper data</span></footer>
+    </main>
+  </div>
+  <dialog id="team-dialog"><div class="dialog-heading"><span class="eyebrow">WELCOME TO TRADE MATCH</span><h2>Your team. Your next move.</h2><p>Choose your team to start finding trades.</p></div><div id="team-grid" class="team-grid"></div><p class="identity-note">Please choose your own team. Team selection is open to anyone with this link.</p><button id="team-dialog-close" class="text-button" hidden>Keep my current team</button></dialog>
+  <dialog id="how-dialog"><button class="dialog-close" data-close="how-dialog" aria-label="Close">×</button><span class="eyebrow">LET’S MAKE SOMETHING GOOD</span><h2>It takes two to trade.</h2><ol class="how-list"><li>Pick your team and browse potential trades.</li><li>Swipe right or tap the heart if you’d take the deal. Swipe left or tap × to pass.</li><li>If the other manager likes <strong>the exact same deal</strong>, you both get an in-app match alert.</li><li>Talk it through in your group chat, then submit it on Sleeper.</li></ol><div class="method-note"><strong>How we find balanced trades</strong><p>We compare recent non-zero weekly scores using your league’s scoring, blend small samples with a position baseline from Sleeper’s search rank, and consider starter fit, depth, and reported injuries. Trade scores are within 18% of one another; roster fit can still differ. These are estimates, not expert rankings, live projections, or a guarantee of fair value.</p><p>Byes, missing scores, injuries, and future performance create uncertainty. Review each deal for yourself. No draft picks are included.</p></div></dialog>
+  <dialog id="roster-dialog"><button class="dialog-close" data-close="roster-dialog" aria-label="Close">×</button><span class="eyebrow">YOUR SIDE OF THE FIELD</span><h2 id="roster-title">Your roster</h2><div id="roster-list"></div></dialog>
+  <dialog id="match-dialog" class="match-dialog"><button class="dialog-close" data-close="match-dialog" aria-label="Close">×</button><div class="match-spark">✦</div><span class="eyebrow">THE FEELING IS MUTUAL</span><h2>It’s a trade match<span>!</span></h2><p id="match-partner"></p><div id="match-terms"></div><p class="match-next">Say hello in your group chat and work out the details. Your rosters haven’t changed.</p><button id="match-open-button" class="primary-button">View my matches <span data-icon="arrow"></span></button></dialog>
+  <div id="toast" role="status" class="toast" hidden></div>
+</body>
+</html>

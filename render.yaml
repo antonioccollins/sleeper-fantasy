@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: trade-match-super-bowl-bound
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python sync.py && gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 90 app:application
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    disk:
+      name: trade-match-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: DATA_DIR
+        value: /var/data
+      - key: SLEEPER_LEAGUE_ID
+        value: "1314338659381575680"
+      - key: AUTO_SYNC
+        value: "1"
