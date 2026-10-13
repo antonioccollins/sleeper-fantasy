@@ -262,7 +262,7 @@ class Application:
         path = env.get("PATH_INFO", "/")
         static = {"/":("index.html","text/html"),"/app.js":("app.js","text/javascript"),"/styles.css":("styles.css","text/css"),"/favicon.svg":("favicon.svg","image/svg+xml")}
         security = [("X-Content-Type-Options","nosniff"),("Referrer-Policy","same-origin"),
-                    ("Content-Security-Policy","default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")]
+                    ("Content-Security-Policy","default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://sleepercdn.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")]
         if path in static and env["REQUEST_METHOD"] == "GET":
             filename, mime = static[path]
             data = (ROOT/"static"/filename).read_bytes()

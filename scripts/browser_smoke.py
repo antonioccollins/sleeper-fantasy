@@ -69,7 +69,7 @@ def run():
                     a.locator('#like-button').click()
                     expect(a.locator('#trade-card')).not_to_have_attribute('data-proposal-id',target['id'])
                     assert not a.locator('#match-dialog').is_visible(), 'One like must not make a match'
-                    a.locator('[data-view="likes"]').click()
+                    a.locator('.bottom-nav [data-view="likes"]').click()
                     a.wait_for_selector('.saved-trade')
                     assert target['give'][0]['name'] in a.locator('#likes-list').inner_text()
                     b.locator(f'[data-team="{target["partner"]["id"]}"]').click()

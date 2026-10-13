@@ -2,6 +2,11 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const icons = {
+  brand: '<path d="M5 2h7l-3 8h6L5 22H1l4-10H1Zm11 0h7l-5 20h-7l4-10h-5Z" fill="currentColor" stroke="none"/>',
+  home: '<path d="m3 10 9-8 9 8v11h-6v-7H9v7H3Z"/>',
+  settings: '<path d="M3 7h8m4 0h6M3 17h12m4 0h2"/><circle cx="13" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>',
+  trophy: '<path d="M7 3h10v7a5 5 0 0 1-10 0ZM7 5H3v3a4 4 0 0 0 4 4M17 5h4v3a4 4 0 0 1-4 4M12 15v5M8 21h8"/>',
+  person: '<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3Z"/>',
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
   x: '<path d="m6 6 12 12M18 6 6 18"/>',
   cards: '<rect x="7" y="3" width="13" height="17" rx="2"/><path d="M4 6H3v14a2 2 0 0 0 2 2h12M11 8h5M11 12h5"/>',
@@ -55,8 +60,20 @@ function empty(title, message='', symbol='cards') {
   return `<div class="empty-state"><span class="empty-symbol">${icon(symbol)}</span><h2>${escape(title)}</h2>${message ? `<p>${escape(message)}</p>` : ''}</div>`;
 }
 function playerRow(p) {
-  return `<div class="player"><div class="player-avatar">${escape(p.position)}</div><div class="player-info"><strong>${escape(p.name)}</strong><small>${escape(p.nfl_team)}${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div></div>`;
+  // Ratings retain Sleeper player IDs. Never substitute a rank/provider ID.
+  const photo = /^\d+$/.test(String(p.id)) ? `https://sleepercdn.com/content/nfl/players/${p.id}.jpg` : null;
+  const nflTeams = new Set(['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAX','KC','LAC','LAR','LV','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SEA','SF','TB','TEN','WAS']);
+  const team = {JAC:'JAX',WSH:'WAS',LA:'LAR'}[p.nfl_team] || p.nfl_team;
+  const logo = nflTeams.has(team) ? `https://sleepercdn.com/images/team_logos/nfl/${team.toLowerCase()}.png` : null;
+  return `<div class="player" data-player-id="${escape(p.id)}"><div class="player-headshot"><span aria-hidden="true">${escape(initials(p.name))}</span>${photo ? `<img src="${photo}" alt="" width="96" height="96" decoding="async" draggable="false" referrerpolicy="no-referrer">` : ''}</div><div class="player-info"><strong>${escape(p.name)}</strong><small><span>${escape(p.position)} · ${escape(p.nfl_team)}</span>${p.injury ? `<span class="injury-tag">${escape(p.injury)}</span>` : ''}</small></div><div class="nfl-logo" aria-hidden="true">${logo ? `<img src="${logo}" alt="" width="48" height="48" decoding="async" draggable="false" referrerpolicy="no-referrer">` : ''}</div></div>`;
 }
+// A missing portrait leaves initials; a missing logo leaves the team abbreviation.
+document.addEventListener('error', event => {
+  if (event.target.matches?.('.player-headshot img, .nfl-logo img')) event.target.hidden = true;
+}, true);
+document.addEventListener('load', event => {
+  if (event.target.matches?.('.player-headshot img')) event.target.parentElement.classList.add('photo-loaded');
+}, true);
 function names(players) { return players.map((p) => escape(p.name)).join('<br>'); }
 function terms(proposal) {
   return `<div class="match-terms"><div><strong>You give</strong><p>${names(proposal.give) || 'Roster has changed'}</p></div><div><strong>You get</strong><p>${names(proposal.receive) || 'Roster has changed'}</p></div></div>`;
@@ -67,14 +84,9 @@ function renderCard() {
   card.style.transform = '';
   const p = state.deck[0];
   card.dataset.proposalId = p?.id || '';
-  $('#trade-partner').hidden = !p || !state.team;
-  if (p && state.team) {
-    $('#partner-avatar').textContent = initials(p.partner.name);
-    $('#partner-name').textContent = p.partner.name;
-    card.setAttribute('aria-labelledby', 'partner-name');
-  } else {
-    card.removeAttribute('aria-labelledby');
-  }
+  if (p && state.team) card.setAttribute('aria-labelledby', 'partner-name');
+  else card.removeAttribute('aria-labelledby');
+  card.parentElement.classList.toggle('has-trades', Boolean(p && state.team));
   const disabled = state.busy || !p || !state.team || state.boot?.stale;
   $('#pass-button').disabled = disabled;
   $('#like-button').disabled = disabled;
@@ -89,7 +101,9 @@ function renderCard() {
   }
   const drops = p.drops.length ? `<p class="drop-note">Extra roster spot needed. Suggested drop: ${p.drops.map(v=>escape(v.name)).join(', ')}.</p>` : '';
   const partnerDrops = p.partner_drops.length ? '<p class="drop-note">Your partner needs an extra roster spot.</p>' : '';
-  card.innerHTML = `<div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
+  const partner = state.boot.teams.find(t => t.id === p.partner.id);
+  const record = partner ? `${partner.wins} – ${partner.losses}${partner.ties ? ` – ${partner.ties}` : ''}` : '';
+  card.innerHTML = `<header class="trade-partner" id="trade-partner"><span class="partner-avatar" id="partner-avatar">${escape(initials(p.partner.name))}</span><div class="partner-info"><h2 id="partner-name">${escape(p.partner.name)}</h2>${record ? `<span class="partner-record">${escape(record)}</span>` : ''}</div><span class="trade-type">${p.give.length} for ${p.receive.length}</span></header><div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
     ${drops || partnerDrops ? `<div class="card-bottom">${drops}${partnerDrops}</div>` : ''}`;
 }
 function renderTeam() {
@@ -150,8 +164,9 @@ async function vote(decision) {
   $('#like-button').disabled=true;
   $('#undo-button').disabled=true;
   $('#trade-card').classList.add(decision==='like'?'exit-right':'exit-left');
+  const animation = new Promise(resolve => setTimeout(resolve, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180));
   try {
-    const result=await api('/api/votes',{method:'POST',body:JSON.stringify({proposal_id:proposal.id,decision})});
+    const [result]=await Promise.all([api('/api/votes',{method:'POST',body:JSON.stringify({proposal_id:proposal.id,decision})}),animation]);
     if (generation!==state.generation) return;
     state.deck.shift();
     state.lastVote=result.matched?null:proposal.id;
@@ -238,11 +253,12 @@ function setView(view) {
   state.view=view;
   $$('.view').forEach(el=>{el.hidden=el.id!==`${view}-view`;});
   $$('.nav-item').forEach(el=>{
-    const active=el.dataset.view===view;
+    const active=el.dataset.view===view || (view==='matches' && el.dataset.view==='likes');
     el.classList.toggle('active',active);
     if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');
   });
-  $('#page-title').textContent={discover:'Trades',likes:'Likes',matches:'Matches'}[view];
+  document.body.classList.toggle('discover-mode', view==='discover');
+  $('#page-title').textContent={discover:'Discover',likes:'Likes',matches:'Matches'}[view];
 }
 function openRoster() {
   if(!state.team)return;
@@ -256,6 +272,7 @@ async function boot() {
     state.boot=data;state.team=data.team;
     lastLeagueCheck=Date.now();
     $('#league-name').textContent=data.league.name;
+    $('#settings-league-name').textContent=data.league.name;
     $('#league-info').textContent=`${data.league.total_rosters} teams · ${data.scoring}`;
     teamChoices();renderTeam();renderCard();
     updateMethod(data);notice(dataNotice(data));
@@ -267,9 +284,21 @@ async function boot() {
 $('#pass-button').addEventListener('click',()=>vote('pass'));
 $('#like-button').addEventListener('click',()=>vote('like'));
 $('#undo-button').addEventListener('click',undo);
-$('#how-button').addEventListener('click',()=>$('#how-dialog').showModal());
-$('#roster-button').addEventListener('click',openRoster);
-$('#team-switch').addEventListener('click',()=>{if(state.boot&&!state.busy){teamChoices();$('#team-dialog').showModal();}});
+function closeMenus() { $$('#settings-dialog[open], #profile-dialog[open], #league-dialog[open]').forEach(d=>d.close()); }
+function openLeague() {
+  if (!state.boot) return;
+  closeMenus();
+  $('#league-teams').innerHTML = state.boot.teams.map(t=>`<div class="roster-row"><span class="team-avatar">${escape(initials(t.name))}</span><div><strong>${escape(t.name)}</strong><small>${escape(t.manager)}</small></div><span class="league-record">${t.wins}–${t.losses}${t.ties ? `–${t.ties}` : ''}</span></div>`).join('');
+  $('#league-dialog').showModal();
+}
+$('#settings-button').addEventListener('click',()=>$('#settings-dialog').showModal());
+$('#profile-button').addEventListener('click',()=>$('#profile-dialog').showModal());
+$('#league-button').addEventListener('click',openLeague);
+$('#settings-league').addEventListener('click',openLeague);
+$('#how-button').addEventListener('click',()=>{closeMenus();$('#how-dialog').showModal();});
+['roster-button','profile-roster'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{closeMenus();openRoster();}));
+['settings-matches','profile-matches'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{closeMenus();setView('matches');refreshLists(false).catch(e=>toast(e.message));}));
+$('#team-switch').addEventListener('click',()=>{if(state.boot&&!state.busy){closeMenus();teamChoices();$('#team-dialog').showModal();}});
 $('#team-dialog-close').addEventListener('click',()=>$('#team-dialog').close());
 $('#team-dialog').addEventListener('cancel',event=>{if(!state.team)event.preventDefault();});
 $$('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
@@ -282,7 +311,9 @@ $$('[data-view]').forEach(button=>button.addEventListener('click',()=>{
 $$('[data-kind]').forEach(button=>button.addEventListener('click',async()=>{
   if(state.busy||!state.team)return;
   state.kind=button.dataset.kind;
+  $('#filter-active').hidden=state.kind==='all';
   $$('[data-kind]').forEach(b=>{b.classList.toggle('selected',b===button);b.setAttribute('aria-pressed',String(b===button));});
+  $('#settings-dialog').close();
   try{await loadDeck();}catch(e){toast(e.message);}
 }));
 document.addEventListener('keydown',event=>{

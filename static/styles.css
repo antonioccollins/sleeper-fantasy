@@ -228,3 +228,119 @@ dialog p { color: var(--muted); font-size: 13px; line-height: 1.7; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* Discover: one focused card, with secondary controls in sheets. */
+body.discover-mode { background: #090b10; }
+.app-header { background: #090b10; }
+.header-inner { max-width: 520px; height: 76px; padding: max(12px, env(safe-area-inset-top)) 22px 10px; gap: 16px; }
+.brand { display: inline-flex; font-size: 26px; letter-spacing: -.8px; font-weight: 650; gap: 11px; }
+.brand-mark { color: #913eff; }
+.brand-mark svg { width: 32px; height: 32px; }
+.settings-button { position: relative; display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; padding: 0; border-radius: 50%; background: #17191f; color: #dedee5; }
+.settings-button:hover { background: #252832; }
+.settings-button svg { width: 21px; height: 21px; }
+.filter-active { position: absolute; top: 4px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #a567ff; }
+body.discover-mode main { max-width: 520px; padding: 14px 22px calc(94px + env(safe-area-inset-bottom)); }
+body.discover-mode .page-intro { display: none; }
+.bottom-nav { position: fixed; inset: auto 0 0; z-index: 6; display: flex; justify-content: space-around; gap: 0; max-width: 520px; height: calc(76px + env(safe-area-inset-bottom)); margin: auto; padding: 7px 12px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid #2a2d35; border-radius: 0; background: #0b0d12; }
+.bottom-nav .nav-item { display: flex; flex-direction: column; flex: 1; gap: 5px; min-width: 0; padding: 5px 2px; border-radius: 0; color: #969baa; background: none; font-size: 11px; font-weight: 500; }
+.bottom-nav .nav-item > span:nth-child(2) { position: static; width: auto; height: auto; padding: 0; margin: 0; overflow: visible; clip-path: none; white-space: nowrap; }
+.bottom-nav .nav-item svg { width: 24px; height: 24px; stroke-width: 1.7; }
+.bottom-nav .nav-item.active { color: #a35aff; }
+.bottom-nav .nav-item.active [data-icon="home"] svg { fill: currentColor; }
+.bottom-nav .nav-item.active > span:nth-child(2) { text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 1px; }
+.bottom-nav .nav-count { position: absolute; top: 0; left: calc(50% + 9px); min-width: 15px; height: 15px; padding: 0 3px; border: 0; background: #8240d9; color: white; font-size: 9px; }
+main { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+.page-actions .text-button { gap: 7px; }
+.card-stack { isolation: isolate; }
+.card-stack.has-trades::before, .card-stack.has-trades::after { content: ''; position: absolute; z-index: -1; inset: -7px 5px 7px; border: 1px solid #414c5b; border-radius: 25px; background: #161e28; transform: rotate(1.5deg); pointer-events: none; }
+.card-stack.has-trades::before { inset: -12px 15px 15px; transform: rotate(-2deg); background: #1a222d; border-color: #3f4b5d; }
+.trade-card { min-height: 0; padding: 12px; border: 1px solid #3b4351; border-radius: 26px; background: #13171f; box-shadow: 0 8px 24px #0004; }
+.trade-partner { display: flex; gap: 12px; margin: 0; padding: 5px 3px 16px; }
+.partner-avatar { width: 46px; height: 46px; background: #493139; color: #fff1f2; font-size: 15px; }
+.partner-info { flex: 1; min-width: 0; }
+.trade-partner h2 { margin: 0; color: #f6f5f8; font-size: 17px; line-height: 1.2; font-weight: 600; letter-spacing: -.4px; }
+.partner-record { display: block; margin-top: 6px; color: #a4a8b4; font-size: 13px; }
+.trade-type { flex-shrink: 0; padding: 8px 13px; border: 1px solid #303540; border-radius: 20px; background: #242933; color: #f0eff4; font-size: 12px; }
+.trade-content { min-height: clamp(300px, calc(100svh - 420px), 420px); gap: 0; }
+.give-group, .receive-group { justify-content: center; flex: 1; padding: 14px 15px 9px; border: 1px solid #3e2c33; border-radius: 18px; background: #261d23; }
+.receive-group { border-color: #2b4134; background: #15261e; }
+.side-label { margin: 0 0 5px; font-size: 12px; letter-spacing: 1.5px; font-weight: 650; color: #ff928e; }
+.side-label.receive { color: #b0ed83; }
+.player { display: grid; grid-template-columns: 58px minmax(0, 1fr) 38px; gap: 12px; min-height: 79px; padding: 10px 0; }
+.player + .player { border-color: #ffffff12; }
+.player-headshot { position: relative; display: grid; place-items: center; width: 58px; height: 58px; overflow: hidden; border-radius: 50%; background: #ffffff0b; color: #c7c7cf; font-size: 15px; font-weight: 550; }
+.player-headshot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.player-headshot.photo-loaded > span { visibility: hidden; }
+.player-info strong { font-size: 18px; line-height: 1.22; letter-spacing: -.5px; font-weight: 600; color: #f7f5f7; }
+.player-info small { gap: 6px; margin-top: 7px; font-size: 12px; color: #b0b3be; }
+.injury-tag { padding: 3px 7px; border-radius: 6px; background: #633638; color: #ffe7e6; font-size: 11px; }
+.nfl-logo { display: grid; place-items: center; width: 38px; height: 38px; }
+.nfl-logo img { width: 100%; height: 100%; object-fit: contain; }
+.trade-divider { height: 18px; margin: 0 15px; gap: 10px; color: #d7d9e0; }
+.trade-divider::before, .trade-divider::after { background: #394047; }
+.trade-divider svg { flex-shrink: 0; width: 40px; height: 40px; padding: 9px; border-color: #3b414b; background: #12171c; }
+.card-bottom { padding: 9px 4px 0; border: 0; background: transparent; }
+.drop-note { font-size: 10px; line-height: 1.4; color: #bfac9e; }
+.swipe-actions { gap: 70px; margin-top: 20px; padding-bottom: 6px; }
+.action-control { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 0; background: transparent; }
+.action-circle { display: grid; place-items: center; width: 68px; height: 68px; border: 1px solid; border-radius: 50%; transition: transform .15s, background .15s; }
+.action-circle.pass { color: #ffa6a1; background: #311c22; border-color: #f37d80; }
+.action-circle.like { color: #b2ed87; background: #14271d; border-color: #79b65e; }
+.action-circle svg { width: 29px; height: 29px; stroke-width: 2; }
+.action-circle.like svg { fill: currentColor; }
+.action-label { font-size: 11px; font-weight: 550; letter-spacing: .6px; text-transform: uppercase; color: #a3a8b7; }
+#like-button .action-label { color: #93c292; }
+.action-control:hover:not(:disabled) .action-circle { transform: translateY(-2px); filter: brightness(1.15); }
+.action-control:active:not(:disabled) .action-circle { transform: scale(.94); }
+.trade-card.drag-left { border-color: #f37d80; }
+.trade-card.drag-right { border-color: #96d771; }
+.trade-card.exit-left { transform: translateX(-85px) rotate(-5deg); }
+.trade-card.exit-right { transform: translateX(85px) rotate(5deg); }
+body.discover-mode .empty-state { min-height: 420px; }
+.menu-label { margin: 0 0 13px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.menu-options { margin-top: 24px; }
+.menu-option { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 12px 0; border-top: 1px solid var(--line); background: transparent; text-align: left; font-size: 14px; }
+.menu-option > span:first-child { color: #a4a8b4; }
+.menu-option > span:last-child:not(:first-child) { margin-left: auto; }
+.menu-option > #settings-league-name { margin-left: 0; }
+.menu-option svg { width: 20px; height: 20px; }
+#profile-dialog .team-switch { width: 100%; border: 0; padding: 8px 0; }
+#profile-dialog .team-switch strong { max-width: none; white-space: normal; font-size: 15px; }
+#profile-dialog .team-switch small { font-size: 12px; }
+.league-record { margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: 12px; }
+#settings-dialog .filter-pills button.selected { background: #452969; border-color: #8752be; }
+.notice { margin-bottom: 20px; }
+@media (min-width: 761px) {
+  body.discover-mode main { padding-top: 16px; }
+  .header-inner { height: 86px; }
+  .player { min-height: 88px; grid-template-columns: 64px minmax(0, 1fr) 42px; gap: 15px; }
+  .player-headshot { width: 64px; height: 64px; }
+  .player-info strong { font-size: 21px; }
+  .nfl-logo { width: 42px; height: 42px; }
+  .swipe-actions { gap: 100px; }
+}
+@media (max-width: 360px) {
+  .header-inner { height: 66px; padding-left: 16px; padding-right: 16px; }
+  .brand { font-size: 23px; }
+  body.discover-mode main { padding-left: 14px; padding-right: 14px; }
+  .trade-card { padding: 9px; border-radius: 22px; }
+  .trade-partner { gap: 8px; padding-bottom: 12px; }
+  .partner-avatar { width: 36px; height: 36px; font-size: 12px; }
+  .trade-partner h2 { font-size: 14px; }
+  .partner-record { margin-top: 4px; font-size: 11px; }
+  .trade-type { padding: 6px 9px; font-size: 10px; }
+  .give-group, .receive-group { padding: 11px 10px 6px; }
+  .side-label { font-size: 10px; }
+  .player { grid-template-columns: 44px minmax(0, 1fr) 27px; gap: 8px; min-height: 66px; padding: 9px 0; }
+  .player-headshot { width: 44px; height: 44px; }
+  .player-info strong { font-size: 16px; }
+  .player-info small { font-size: 11px; gap: 4px; margin-top: 5px; }
+  .injury-tag { font-size: 10px; padding: 2px 5px; }
+  .nfl-logo { width: 27px; height: 27px; }
+}
+@media (max-height: 720px) and (max-width: 760px) {
+  .swipe-actions { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 3; margin-top: 12px; padding: 10px 0 6px; background: #090b10f5; }
+  .action-circle { width: 56px; height: 56px; }
+  .action-control { gap: 6px; }
+}
