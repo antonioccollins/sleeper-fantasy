@@ -17,7 +17,7 @@ with sync_playwright() as p:
     page.evaluate('document.fonts.ready')
     page.screenshot(path=str(output))
     page.set_viewport_size({'width': 180, 'height': 180})
-    page.set_content('<style>body{margin:0}body>svg{display:block;width:180px;height:180px}</style>' + (root / 'static/favicon.svg').read_text())
+    page.set_content('<style>body{margin:0;background:#0d0e14}body>svg{display:block;width:180px;height:180px}</style>' + (root / 'static/favicon.svg').read_text())
     page.screenshot(path=str(output.with_name('tradeblock-icon.png')))
     browser.close()
 print(output)
