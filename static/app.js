@@ -206,14 +206,21 @@ function savedItem(p,matched) {
   const status = matched ? (p.available ? '' : 'Rosters changed. Trade unavailable.') : 'Pending';
   return `<article class="saved-trade"><div class="saved-trade-header"><h3>${escape(p.partner.name)}</h3>${matched?'<span class="match-label">MATCH</span>':icon('heart')}</div>${terms(p)}${status ? `<div class="saved-trade-footer"><span>${status}</span>${!matched?`<button data-withdraw="${p.id}">Withdraw</button>`:''}</div>` : ''}</article>`;
 }
+function likedItem(p) {
+  const partner=state.boot.teams.find(t=>t.id===p.partner.id) || p.partner;
+  return `<article class="saved-trade liked-trade"><header class="liked-header"><span class="team-avatar">${teamAvatar(partner)}</span><div class="liked-partner"><h3>${escape(p.partner.name)}</h3><span>${p.give.length} for ${p.receive.length}</span></div><span class="liked-heart" aria-label="Liked">${icon('heart')}</span></header><div class="match-deal liked-deal"><section class="match-side match-give"><h3>You give</h3>${p.give.map(playerRow).join('')}</section><section class="match-side match-get"><h3>You get</h3>${p.receive.map(playerRow).join('')}</section></div><footer class="liked-footer"><span class="liked-status"><span aria-hidden="true"></span>Awaiting match</span><button data-withdraw="${escape(p.id)}" aria-label="Remove like for trade with ${escape(p.partner.name)}">Remove like</button></footer></article>`;
+}
 function renderLists() {
   $('#likes-count').textContent=state.likes.length;
   $('#likes-count').hidden=state.likes.length===0;
+  $('#saved-likes-count').textContent=state.likes.length;
+  $('#saved-likes-count').hidden=state.likes.length===0;
   const unread=state.matches.filter(m=>m.unread).length;
   $('#matches-count').textContent=unread||state.matches.length;
   $('#matches-count').hidden=state.matches.length===0;
   $('#matches-count').classList.toggle('unread',unread>0);
-  $('#likes-list').innerHTML=state.likes.length ? state.likes.map(p=>savedItem(p,false)).join('') : empty('No likes yet', '', 'heart');
+  $('#likes-list').innerHTML=state.likes.length ? state.likes.map(likedItem).join('') : `<div class="empty-state likes-empty"><span class="action-circle match-seal" aria-hidden="true">${icon('heart')}</span><h2>No likes yet</h2><button id="explore-trades" class="text-button">Explore trades ${icon('arrow')}</button></div>`;
+  $('#explore-trades')?.addEventListener('click',()=>setView('discover'));
   $('#matches-list').innerHTML=state.matches.length ? state.matches.map(p=>savedItem(p,true)).join('') : empty('No matches yet', '', 'matches');
   $$('[data-withdraw]').forEach(button=>button.addEventListener('click',async()=>{
     if(state.busy) return;
@@ -276,7 +283,14 @@ function setView(view) {
     if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');
   });
   document.body.classList.toggle('discover-mode', view==='discover');
-  $('#page-title').textContent={discover:'Discover',likes:'Likes',matches:'Matches'}[view];
+  document.body.classList.toggle('likes-mode', view==='likes');
+  document.body.classList.toggle('saved-mode', view!=='discover');
+  $$('.collection-tab').forEach(el=>{
+    const active=el.dataset.view===view;
+    el.classList.toggle('selected',active);
+    el.setAttribute('aria-pressed',String(active));
+  });
+  $('#page-title').textContent={discover:'Discover',likes:'Your likes',matches:'Matches'}[view];
 }
 function openRoster() {
   if(!state.team)return;
