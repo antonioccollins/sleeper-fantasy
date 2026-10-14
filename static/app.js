@@ -88,33 +88,56 @@ function names(players) { return players.map((p) => escape(p.name)).join('<br>')
 function terms(proposal) {
   return `<div class="match-terms"><div><strong>You give</strong><p>${names(proposal.give) || 'Roster has changed'}</p></div><div><strong>You get</strong><p>${names(proposal.receive) || 'Roster has changed'}</p></div></div>`;
 }
-function renderCard() {
-  const card = $('#trade-card');
-  card.className = 'trade-card';
-  card.style.transform = '';
-  const p = state.deck[0];
-  card.dataset.proposalId = p?.id || '';
-  if (p && state.team) card.setAttribute('aria-labelledby', 'partner-name');
-  else card.removeAttribute('aria-labelledby');
-  card.parentElement.classList.toggle('has-trades', Boolean(p && state.team));
-  const disabled = state.busy || !p || !state.team || state.boot?.stale;
-  $('#pass-button').disabled = disabled;
-  $('#like-button').disabled = disabled;
-  $('#undo-button').disabled = state.busy || !state.lastVote;
-  if (!state.team) {
-    card.innerHTML = empty('Choose your team', '', 'swap');
-    return;
-  }
-  if (!p) {
-    card.innerHTML = state.boot?.stale ? empty('Trades paused') : empty('No more trades', 'Try another filter or check your likes.');
-    return;
-  }
+function tradeCardContent(p, prefix='') {
   const drops = p.drops.length ? `<p class="drop-note">Extra roster spot needed. Suggested drop: ${p.drops.map(v=>escape(v.name)).join(', ')}.</p>` : '';
   const partnerDrops = p.partner_drops.length ? '<p class="drop-note">Your partner needs an extra roster spot.</p>' : '';
   const partner = state.boot.teams.find(t => t.id === p.partner.id);
   const record = partner ? `${partner.wins} – ${partner.losses}${partner.ties ? ` – ${partner.ties}` : ''}` : '';
-  card.innerHTML = `<header class="trade-partner" id="trade-partner"><span class="partner-avatar" id="partner-avatar">${teamAvatar(partner || p.partner)}</span><div class="partner-info"><h2 id="partner-name">${escape(p.partner.name)}</h2>${record ? `<span class="partner-record">${escape(record)}</span>` : ''}</div><span class="trade-type">${p.give.length} for ${p.receive.length}</span></header><div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
+  return `<header class="trade-partner" id="${prefix}trade-partner"><span class="partner-avatar" id="${prefix}partner-avatar">${teamAvatar(partner || p.partner)}</span><div class="partner-info"><h2 id="${prefix}partner-name">${escape(p.partner.name)}</h2>${record ? `<span class="partner-record">${escape(record)}</span>` : ''}</div><span class="trade-type">${p.give.length} for ${p.receive.length}</span></header><div class="trade-content"><div class="give-group"><div class="side-label">You give</div>${p.give.map(playerRow).join('')}</div><div class="trade-divider">${icon('swap')}</div><div class="receive-group"><div class="side-label receive">You get</div>${p.receive.map(playerRow).join('')}</div></div>
     ${drops || partnerDrops ? `<div class="card-bottom">${drops}${partnerDrops}</div>` : ''}`;
+}
+function paintTrade(card, proposal, prefix='') {
+  const markup=tradeCardContent(proposal,prefix);
+  if(card.dataset.proposalId===proposal.id && card._tradeMarkup===markup)return;
+  const next=$('#next-trade-card');
+  if(card.id==='trade-card' && next.dataset.proposalId===proposal.id && next._tradeMarkup===tradeCardContent(proposal,'next-')) {
+    // Promote the already decoded image nodes instead of rebuilding the card.
+    card.replaceChildren(...next.childNodes);
+    card.querySelectorAll('[id]').forEach(el=>{el.id=el.id.replace(/^next-/, '');});
+    next._tradeMarkup=null;
+    next.dataset.proposalId='';
+  } else card.innerHTML=markup;
+  card._tradeMarkup=markup;
+  card.dataset.proposalId=proposal.id;
+  if(prefix)card.querySelectorAll('img').forEach(img=>{img.decode?.().catch(()=>{});});
+}
+function renderCard() {
+  const card=$('#trade-card'), next=$('#next-trade-card');
+  card.className='trade-card';
+  card.style.transform='';
+  const p=state.team ? state.deck[0] : null;
+  const upcoming=p && !state.boot?.stale ? state.deck[1] : null;
+  const disabled=state.busy || !p || !state.team || state.boot?.stale;
+  $('#pass-button').disabled=disabled;
+  $('#like-button').disabled=disabled;
+  $('#undo-button').disabled=state.busy || !state.lastVote;
+  if(p) {
+    paintTrade(card,p);
+    card.setAttribute('aria-labelledby','partner-name');
+  } else {
+    card.dataset.proposalId='';
+    card._tradeMarkup=null;
+    card.removeAttribute('aria-labelledby');
+    card.innerHTML=!state.team ? empty('Choose your team', '', 'swap') : state.busy ? empty('Loading…') : state.boot?.stale ? empty('Trades paused') : empty('No more trades', 'Try another filter or check your likes.');
+  }
+  next.hidden=!upcoming;
+  if(upcoming)paintTrade(next,upcoming,'next-');
+  else {
+    next.replaceChildren();
+    next.dataset.proposalId='';
+    next._tradeMarkup=null;
+  }
+  card.parentElement.classList.toggle('has-more',Boolean(upcoming && state.deck[2]));
 }
 function renderTeam() {
   if (!state.team) return;
@@ -154,6 +177,8 @@ async function chooseTeam(id) {
     state.lastVote = null;
     state.likes = [];
     state.matches = [];
+    state.deck = [];
+    renderCard();
     $('#likes-count').textContent = '0';
     $('#matches-count').textContent = '0';
     $('#likes-count').hidden = true;
@@ -182,6 +207,7 @@ async function vote(decision) {
     if (generation!==state.generation) return;
     state.deck.shift();
     state.lastVote=result.matched?null:proposal.id;
+    renderCard();
     if(result.matched) await showMatch(result.match);
     await refreshLists(false);
   } catch (error) {
