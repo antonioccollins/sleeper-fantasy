@@ -213,6 +213,7 @@ test('personal rankings persist per team and season, include unrostered players,
   await env.storage.setJSON('league/1314338659381575680/players',{players:{free:{full_name:'Free Agent',position:'WR',team:'BUF',active:true},old:{full_name:'Retired',position:'WR',team:'BUF',active:false}}});
   const initial=await a.request('/api/rankings');
   assert.deepEqual(initial.data.lists,{});
+  assert.equal(initial.data.limit,40);
   assert.ok(initial.data.players.some(p=>p.id==='free'));
   assert.ok(!initial.data.players.some(p=>p.id==='old'));
   assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
@@ -222,6 +223,13 @@ test('personal rankings persist per team and season, include unrostered players,
   assert.deepEqual((await a.request('/api/rankings')).data.lists.RB.ids,['b1','a1']);
   assert.deepEqual((await b.request('/api/rankings')).data.lists,{});
   assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  const ids=Array.from({length:41},(_,i)=>`wr${i}`);
+  for(const id of ids)env.model.players[id]={id,name:id,position:'WR',nfl_team:'BUF'};
+  assert.equal((await a.request('/api/rankings','POST',{position:'WR',ids:ids.slice(0,40),revision:null})).status,200);
+  const forty=(await a.request('/api/rankings')).data.lists.WR;
+  assert.deepEqual(forty.ids,ids.slice(0,40));
+  assert.equal((await a.request('/api/rankings','POST',{position:'WR',ids,revision:forty.revision})).status,400);
+  assert.deepEqual((await a.request('/api/rankings')).data.lists.WR.ids,forty.ids);
   env.model.league.season='2027';
   assert.deepEqual((await a.request('/api/rankings')).data.lists,{});
 });
@@ -287,7 +295,7 @@ test('rankings reject invalid entries and prevent concurrent overwrite without l
     {position:'WR',ids:['a1'],revision:null},
     {position:'RB',ids:['unknown'],revision:null},
     {position:'ALL',ids:[],revision:null},
-    {position:'RB',ids:Array.from({length:26},(_,i)=>String(i)),revision:null},
+    {position:'RB',ids:Array.from({length:41},(_,i)=>String(i)),revision:null},
     {position:'RB',ids:['a1']},
   ])assert.equal((await a.request('/api/rankings','POST',input)).status,400);
   env.model.players.q={id:'q',name:'QB',position:'QB',nfl_team:'BUF'};

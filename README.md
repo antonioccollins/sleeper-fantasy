@@ -70,7 +70,7 @@ Each completed trade counts once per participating roster, including picks and F
 
 ## Personal player rankings
 
-The **Rankings** tab saves each manager’s ordered lists of up to 25 players at QB, RB, WR, TE, K, and DEF. Search includes unrostered NFL players. Drag the six-dot handle or hold and drag a player to reorder (with edge auto-scrolling), or tap a rank number. Quick touch swipes still scroll the list. Remove/add players and explicitly save each position. The optional starting list uses available roster positional rankings followed by Sleeper search order; it is only an editable draft and never counts as a manager’s opinion until saved.
+The **Rankings** tab saves each manager’s ordered lists of up to 40 players at QB, RB, WR, TE, K, and DEF. Search includes unrostered NFL players. Drag the six-dot handle or hold and drag a player to reorder (with edge auto-scrolling), or tap a rank number. Quick touch swipes still scroll the list. Remove/add players and explicitly save each position. The optional starting list uses available roster positional rankings followed by Sleeper search order; it is only an editable draft and never counts as a manager’s opinion until saved.
 
 Opportunities compare the saved lists of two current owners. Both players must appear in both managers’ lists at the same position, and each manager must rank the player they would receive above their own. Unlisted players are not assumed to rank below listed players. Opportunities use current roster ownership, including reserve players, and pause when the roster snapshot is over an hour old. They do not require FantasyPros availability or the trade generator’s value filter, and they never create likes or confirmed matches.
 

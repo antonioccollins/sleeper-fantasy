@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { prefix, mutate } from './store.mjs';
 
 export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+const RANKING_LIMIT = 40;
 const keyFor = model => `${prefix}/personal-rankings/v1/${model.league.season}`;
 const fail = (status, message) => Object.assign(new Error(message), {status, public: true});
 const own = (data, team) => data.teams?.[team.id]?.owner_id === team.owner_id ? data.teams[team.id] : {owner_id: team.owner_id, positions: {}, seen: {}};
@@ -23,13 +24,13 @@ export async function playerCatalog(store, model) {
 
 export async function getPersonalRankings(store, model, team) {
   const [data, players] = await Promise.all([read(store, model), playerCatalog(store, model)]);
-  return {season: model.league.season, positions: POSITIONS, limit: 25, players, lists: own(data, team).positions};
+  return {season: model.league.season, positions: POSITIONS, limit: RANKING_LIMIT, players, lists: own(data, team).positions};
 }
 
 export async function savePersonalRankings(store, model, team, input) {
-  if (!POSITIONS.includes(input.position) || !Array.isArray(input.ids) || input.ids.length > 25 ||
+  if (!POSITIONS.includes(input.position) || !Array.isArray(input.ids) || input.ids.length > RANKING_LIMIT ||
       input.ids.some(id => typeof id !== 'string') || new Set(input.ids).size !== input.ids.length ||
-      !(input.revision === null || typeof input.revision === 'string')) throw fail(400, 'Choose up to 25 different players at one position.');
+      !(input.revision === null || typeof input.revision === 'string')) throw fail(400, `Choose up to ${RANKING_LIMIT} different players at one position.`);
   const players = new Map((await playerCatalog(store, model)).map(p => [p.id, p]));
   if (input.ids.some(id => players.get(id)?.position !== input.position)) throw fail(400, 'Every player must belong to the selected position.');
   return mutate(store, keyFor(model), () => ({teams: {}}), data => {

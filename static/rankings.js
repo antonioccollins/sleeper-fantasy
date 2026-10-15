@@ -27,12 +27,12 @@ window.rankingFeature = (() => {
     if(!data)return;
     const ids=draft();
     $('.ranking-positions').innerHTML=data.positions.map(pos=>`<button data-ranking-position="${pos}" class="${pos===position?'selected':''}" aria-pressed="${pos===position}">${pos}</button>`).join('');
-    $('#ranking-position-title').textContent=`Your top 25 ${position==='DEF'?'defenses':position+'s'}`;
+    $('#ranking-position-title').textContent=`Your top ${data.limit} ${position==='DEF'?'defenses':position+'s'}`;
     $('#ranking-save-state').textContent=saving?'Saving…':dirty()?'Unsaved changes':data.lists[position]?'Saved rankings':'Not ranked yet';
     $('#ranking-save').disabled=saving || !dirty();
-    $('#ranking-add').disabled=saving || ids.length>=25;
-    $('#ranking-slots').textContent=`${ids.length} / 25`;
-    $('#ranking-list').innerHTML=ids.length ? ids.map((id,i)=>`<li class="ranking-row" data-ranking-player="${escape(id)}"><select class="ranking-order" data-ranking-move="${i}" aria-label="Rank ${escape(player(id).name)}" ${saving?'disabled':''}>${ids.map((_,j)=>`<option value="${j}" ${i===j?'selected':''}>${j+1}</option>`).join('')}</select>${playerRow(player(id))}<span class="ranking-grip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" stroke-width="3"/></svg></span><button class="ranking-remove" data-ranking-remove="${i}" aria-label="Remove ${escape(player(id).name)}" ${saving?'disabled':''}>${icon('x')}</button></li>`).join('') : `<li class="ranking-empty">${icon('list')}<h3>Who’s in your top 25?</h3><p>Add players in your order, or edit a starting list.</p><button id="ranking-start" class="text-button" ${saving?'disabled':''}>Use a starting list</button></li>`;
+    $('#ranking-add').disabled=saving || ids.length>=data.limit;
+    $('#ranking-slots').textContent=`${ids.length} / ${data.limit}`;
+    $('#ranking-list').innerHTML=ids.length ? ids.map((id,i)=>`<li class="ranking-row" data-ranking-player="${escape(id)}"><select class="ranking-order" data-ranking-move="${i}" aria-label="Rank ${escape(player(id).name)}" ${saving?'disabled':''}>${ids.map((_,j)=>`<option value="${j}" ${i===j?'selected':''}>${j+1}</option>`).join('')}</select>${playerRow(player(id))}<span class="ranking-grip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" stroke-width="3"/></svg></span><button class="ranking-remove" data-ranking-remove="${i}" aria-label="Remove ${escape(player(id).name)}" ${saving?'disabled':''}>${icon('x')}</button></li>`).join('') : `<li class="ranking-empty">${icon('list')}<h3>Who’s in your top ${data.limit}?</h3><p>Add players in your order, or edit a starting list.</p><button id="ranking-start" class="text-button" ${saving?'disabled':''}>Use a starting list</button></li>`;
     $$('[data-ranking-position]').forEach(button=>button.addEventListener('click',()=>{position=button.dataset.rankingPosition;status();$('#ranking-reload').hidden=true;renderEditor();}));
     $$('[data-ranking-move]').forEach(select=>select.addEventListener('change',()=>{
       const from=Number(select.dataset.rankingMove),to=Number(select.value),ids=draft();
@@ -40,16 +40,16 @@ window.rankingFeature = (() => {
       $(`[data-ranking-move="${to}"]`).focus({preventScroll:true});
     }));
     $$('[data-ranking-remove]').forEach(button=>button.addEventListener('click',()=>{draft().splice(Number(button.dataset.rankingRemove),1);renderEditor();}));
-    $('#ranking-start')?.addEventListener('click',()=>{drafts[position]=data.players.filter(p=>p.position===position).slice(0,25).map(p=>p.id);renderEditor();status('Starting list only. Adjust it, then save your rankings.');});
+    $('#ranking-start')?.addEventListener('click',()=>{drafts[position]=data.players.filter(p=>p.position===position).slice(0,data.limit).map(p=>p.id);renderEditor();status('Starting list only. Adjust it, then save your rankings.');});
   }
   function renderPicker() {
     const query=$('#ranking-search').value.trim().toLocaleLowerCase();
     const available=data.players.filter(p=>p.position===position && `${p.name} ${p.nfl_team}`.toLocaleLowerCase().includes(query));
-    $('#ranking-search-results').innerHTML=available.slice(0,80).map(p=>`<button class="ranking-search-row" data-ranking-add="${escape(p.id)}" ${draft().includes(p.id)||draft().length>=25?'disabled':''}>${playerRow(p)}<span>${draft().includes(p.id)?'Added':'+'}</span></button>`).join('') || '<p class="ranking-hint">No players found.</p>';
+    $('#ranking-search-results').innerHTML=available.slice(0,80).map(p=>`<button class="ranking-search-row" data-ranking-add="${escape(p.id)}" ${draft().includes(p.id)||draft().length>=data.limit?'disabled':''}>${playerRow(p)}<span>${draft().includes(p.id)?'Added':'+'}</span></button>`).join('') || '<p class="ranking-hint">No players found.</p>';
     $$('[data-ranking-add]').forEach(button=>button.addEventListener('click',()=>{
-      if(draft().length>=25 || draft().includes(button.dataset.rankingAdd))return;
+      if(draft().length>=data.limit || draft().includes(button.dataset.rankingAdd))return;
       draft().push(button.dataset.rankingAdd);renderEditor();renderPicker();
-      if(draft().length===25)$('#ranking-picker').close();
+      if(draft().length===data.limit)$('#ranking-picker').close();
     }));
   }
   function finishDrag(commit,render=true) {
