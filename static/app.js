@@ -115,9 +115,16 @@ function paintTrade(card, proposal, prefix='') {
 }
 function renderCard() {
   const card=$('#trade-card'), next=$('#next-trade-card');
+  const p=state.team ? state.deck[0] : null;
+  const changed=card.dataset.proposalId!==(p?.id || '');
+  // New terms take over at rest. Do not reverse the outgoing card's exit
+  // transition or animate the freshly replenished preview back into the stack.
+  if(changed) {
+    card.style.transition='none';
+    next.style.transition='none';
+  }
   card.className='trade-card';
   card.style.transform='';
-  const p=state.team ? state.deck[0] : null;
   const upcoming=p && !state.boot?.stale ? state.deck[1] : null;
   const disabled=state.busy || !p || !state.team || state.boot?.stale;
   $('#pass-button').disabled=disabled;
@@ -140,6 +147,12 @@ function renderCard() {
     next._tradeMarkup=null;
   }
   card.parentElement.classList.toggle('has-more',Boolean(upcoming && state.deck[2]));
+  if(changed) {
+    // Commit the centered, opaque state before enabling the next swipe.
+    void card.offsetWidth;
+    card.style.removeProperty('transition');
+    next.style.removeProperty('transition');
+  }
 }
 function renderTeam() {
   if (!state.team) return;
