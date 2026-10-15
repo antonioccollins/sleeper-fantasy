@@ -38,6 +38,7 @@
     <nav class="bottom-nav" aria-label="Main navigation">
       <button class="nav-item active" data-view="discover" aria-current="page"><span data-icon="home"></span><span>Discover</span></button>
       <button class="nav-item" data-view="likes"><span data-icon="heart"></span><span>Likes</span><span id="likes-count" class="nav-count" hidden>0</span></button>
+      <button class="nav-item" data-view="risk"><span data-icon="flame"></span><span>Risk Taker</span></button>
       <button id="league-button" class="nav-item" aria-haspopup="dialog"><span data-icon="trophy"></span><span>League</span></button>
       <button id="profile-button" class="nav-item" aria-haspopup="dialog"><span data-icon="person"></span><span>Profile</span></button>
     </nav>
@@ -57,6 +58,11 @@
       </section>
       <section id="likes-view" class="view" hidden><div id="likes-list" class="trade-list"></div></section>
       <section id="matches-view" class="view" hidden><div id="matches-list" class="trade-list"></div></section>
+      <section id="risk-view" class="view" aria-labelledby="page-title" hidden>
+        <div class="risk-toolbar"><p id="risk-season">Season activity</p><button id="risk-refresh" class="settings-button" aria-label="Refresh risk index"><span data-icon="refresh"></span></button></div>
+        <p id="risk-status" class="risk-status" role="status" hidden></p>
+        <div id="risk-content" aria-busy="false"></div>
+      </section>
     </main>
   </div>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" data-close="settings-dialog" aria-label="Close">×</button><h2 id="settings-title">Trade settings</h2>

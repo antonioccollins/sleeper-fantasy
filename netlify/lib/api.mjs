@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { getStorage, leagueID, prefix, mutate } from './store.mjs';
 import { getModel } from './league.mjs';
+import { getRiskIndex } from './risk.mjs';
 import { RANK_MAX_AGE_MS } from './fantasypros.mjs';
 
 class APIError extends Error {
@@ -65,7 +66,7 @@ function snapshot(proposal, model) {
     _teams: model.teams.filter(t => [proposal.a, proposal.b].includes(t.id)).map(t => ({id: t.id, name: t.name, manager: t.manager}))};
 }
 
-export function createHandler({storage = getStorage, loadModel = getModel} = {}) {
+export function createHandler({storage = getStorage, loadModel = getModel, loadRisk = getRiskIndex} = {}) {
   return async request => {
     try {
       const url = new URL(request.url), path = url.pathname, method = request.method;
@@ -76,6 +77,7 @@ export function createHandler({storage = getStorage, loadModel = getModel} = {})
         if (request.headers.get('content-type')?.split(';')[0] !== 'application/json') throw new APIError(415, 'Use a JSON request.');
       }
       const store = storage();
+      if (path === '/api/risk' && method === 'GET') return response(await loadRisk(store));
       const model = await loadModel(store);
       if (path === '/health' && method === 'GET') return response({status: 'ok', league: model.league.name, updated_at: model.updated_at, stale: stale(model), recommendations: model.recommendations});
       const team = await session(request, model, store);

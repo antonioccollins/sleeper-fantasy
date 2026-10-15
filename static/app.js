@@ -6,6 +6,8 @@ const icons = {
   home: '<path d="m3 10 9-8 9 8v11h-6v-7H9v7H3Z"/>',
   settings: '<path d="M3 7h8m4 0h6M3 17h12m4 0h2"/><circle cx="13" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>',
   trophy: '<path d="M7 3h10v7a5 5 0 0 1-10 0ZM7 5H3v3a4 4 0 0 0 4 4M17 5h4v3a4 4 0 0 1-4 4M12 15v5M8 21h8"/>',
+  flame: '<path d="M13 2c1 6-5 6-3 11 2-1 3-3 3-5 4 3 6 6 5 9a7 7 0 0 1-13-2c0-5 5-7 8-13Z"/>',
+  refresh: '<path d="M20 7v5h-5M4 17v-5h5M5.5 7a7 7 0 0 1 12-2L20 8M4 16l2.5 3a7 7 0 0 0 12-2"/>',
   person: '<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3Z"/>',
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
   x: '<path d="m6 6 12 12M18 6 6 18"/>',
@@ -24,7 +26,7 @@ const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name
 $$('[data-icon]').forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
 const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]).join('').toUpperCase();
-const state = {boot:null,team:null,deck:[],kind:'all',view:'discover',busy:false,lastVote:null,likes:[],matches:[],announced:new Set(),generation:0};
+const state = {boot:null,team:null,deck:[],kind:'all',view:'discover',busy:false,lastVote:null,likes:[],matches:[],announced:new Set(),generation:0,risk:null,riskLoaded:0,riskLoading:false};
 let toastTimer;
 let lastLeagueCheck = 0;
 
@@ -300,6 +302,43 @@ async function showMatch(match) {
   try {await api(`/api/matches/${match.id}`,{method:'POST',body:'{}'});}
   catch(error){toast('Your match is saved. The alert will stay unread until you reconnect.');}
 }
+function renderRisk() {
+  const data=state.risk;
+  if(!data)return;
+  const mine=data.teams.find(t=>t.id===state.team?.id);
+  const number=value=>Number(value).toLocaleString('en-US');
+  $('#risk-season').textContent=`${data.season} season · ${data.league}`;
+  $('#risk-status').hidden=!data.stale;
+  $('#risk-status').textContent=data.stale ? 'Sleeper is taking a break. Showing the last update.' : '';
+  const stats=team=>`<dl class="risk-stats"><div><dt>FAAB spent</dt><dd>${data.uses_faab ? `$${number(team.faab_spent)}` : '—'}</dd></div><div><dt>Trades</dt><dd>${number(team.trades)}</dd></div><div><dt>Moves</dt><dd>${number(team.moves)}</dd></div></dl>`;
+  const hero=mine ? `<article class="risk-hero"><div class="risk-hero-top"><span>Your risk score</span><span class="risk-rank">#${mine.rank} in the league</span></div><div class="risk-score"><strong>${mine.score}</strong><span>/ 100</span><span class="risk-emblem" aria-hidden="true">${icon('flame')}</span></div><div class="risk-own-team"><span class="team-avatar">${teamAvatar(mine)}</span><span>${escape(mine.name)}</span></div>${stats(mine)}</article>` : '';
+  const rows=data.teams.map(team=>`<li class="risk-team ${team.id===state.team?.id ? 'is-you' : ''}" data-risk-team="${team.id}"><div class="risk-team-top"><span class="risk-place" aria-label="Rank ${team.rank}">${team.rank}</span><span class="team-avatar">${teamAvatar(team)}</span><div class="risk-team-name"><h3>${escape(team.name)}</h3><span>${team.id===state.team?.id ? 'You' : escape(team.manager)}</span></div><strong class="risk-team-score" aria-label="${team.score} out of 100">${team.score}</strong></div>${stats(team)}<details class="risk-breakdown"><summary>Breakdown</summary><dl><div><dt>Completed transactions</dt><dd>${number(team.transactions)}</dd></div><div><dt>Waiver moves / free-agent moves</dt><dd>${number(team.waivers)} / ${number(team.free_agents)}</dd></div><div><dt>Players added / dropped (outside trades)</dt><dd>${number(team.adds)} / ${number(team.drops)}</dd></div>${data.uses_faab ? `<div><dt>Biggest winning bid</dt><dd>$${number(team.biggest_bid)}</dd></div>` : ''}<div><dt>Trade points</dt><dd>${team.points.trades.toFixed(1)} / ${data.weights.trades}</dd></div>${data.uses_faab ? `<div><dt>FAAB points</dt><dd>${team.points.faab.toFixed(1)} / ${data.weights.faab}</dd></div>` : ''}<div><dt>Move points</dt><dd>${team.points.moves.toFixed(1)} / ${data.weights.moves}</dd></div></dl></details></li>`).join('');
+  const updated=new Date(data.updated_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'});
+  $('#risk-content').innerHTML=`${hero}<div class="risk-list-heading"><h2>League rankings</h2><span>Score / 100</span></div><ol class="risk-leaderboard">${rows}</ol><details class="risk-method"><summary>How it’s scored</summary><p>An activity index for this league’s ${escape(data.season)} season. Higher means more willingness to make moves, not better results.</p><p><strong>Trades · ${data.weights.trades} points</strong>Completed Sleeper trades, divided by the league’s highest trade count. Each participant gets one trade, including pick-only deals.</p>${data.uses_faab ? `<p><strong>FAAB · ${data.weights.faab} points</strong>Successful waiver bids as a share of the $${number(data.budget)} starting budget, capped at 100%. Traded FAAB and failed bids aren’t spending.</p>` : '<p>This league doesn’t use a FAAB budget, so the score uses trades and moves.</p>'}<p><strong>Moves · ${data.weights.moves} points</strong>Completed waiver and free-agent transactions, divided by the league’s highest move count. An add and drop together count as one move.</p><p>Points are added and rounded to 0–100. Equal scores share a rank. Only Sleeper activity counts; TradeBlock likes and matches don’t affect it.</p></details><p class="risk-updated">Sleeper · Updated ${escape(updated)} ET${data.stale ? ' · Delayed' : ''}</p>`;
+}
+async function loadRisk(force=false) {
+  if(state.riskLoading)return;
+  if(!force && state.risk && Date.now()-state.riskLoaded<900000){renderRisk();return;}
+  state.riskLoading=true;
+  $('#risk-refresh').disabled=true;
+  $('#risk-content').setAttribute('aria-busy','true');
+  if(!state.risk)$('#risk-content').innerHTML=empty('Loading league activity…','','flame');
+  $('#risk-status').hidden=true;
+  try {
+    state.risk=await api('/api/risk');
+    renderRisk();
+  } catch(error) {
+    if(state.risk){state.risk.stale=true;renderRisk();}
+    else $('#risk-content').innerHTML=empty('Activity unavailable','Use refresh to try again.','flame');
+    $('#risk-status').textContent=error.message;
+    $('#risk-status').hidden=false;
+  } finally {
+    state.riskLoaded=Date.now();
+    state.riskLoading=false;
+    $('#risk-refresh').disabled=false;
+    $('#risk-content').setAttribute('aria-busy','false');
+  }
+}
 function setView(view) {
   state.view=view;
   $$('.view').forEach(el=>{el.hidden=el.id!==`${view}-view`;});
@@ -310,13 +349,15 @@ function setView(view) {
   });
   document.body.classList.toggle('discover-mode', view==='discover');
   document.body.classList.toggle('likes-mode', view==='likes');
+  document.body.classList.toggle('risk-mode', view==='risk');
   document.body.classList.toggle('saved-mode', view!=='discover');
   $$('.collection-tab').forEach(el=>{
     const active=el.dataset.view===view;
     el.classList.toggle('selected',active);
     el.setAttribute('aria-pressed',String(active));
   });
-  $('#page-title').textContent={discover:'Discover',likes:'Your likes',matches:'Matches'}[view];
+  $('#page-title').textContent={discover:'Discover',likes:'Your likes',matches:'Matches',risk:'Risk Taker Index'}[view];
+  if(view==='risk')loadRisk();
 }
 function openRoster() {
   if(!state.team)return;
@@ -341,6 +382,7 @@ async function boot() {
 
 $('#pass-button').addEventListener('click',()=>vote('pass'));
 $('#like-button').addEventListener('click',()=>vote('like'));
+$('#risk-refresh').addEventListener('click',()=>loadRisk(true));
 $('#undo-button').addEventListener('click',undo);
 function closeMenus() { $$('#settings-dialog[open], #profile-dialog[open], #league-dialog[open]').forEach(d=>d.close()); }
 function openLeague() {
@@ -362,9 +404,9 @@ $('#team-dialog').addEventListener('cancel',event=>{if(!state.team)event.prevent
 $$('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
 $('#match-open-button').addEventListener('click',()=>{$('#match-dialog').close();setView('matches');refreshLists(false).catch(e=>toast(e.message));});
 $$('[data-view]').forEach(button=>button.addEventListener('click',()=>{
-  if(!state.team){if(state.boot)$('#team-dialog').showModal();return;}
+  if(!state.team && button.dataset.view!=='risk'){if(state.boot)$('#team-dialog').showModal();return;}
   setView(button.dataset.view);
-  refreshLists(false).catch(e=>toast(e.message));
+  if(button.dataset.view!=='risk')refreshLists(false).catch(e=>toast(e.message));
 }));
 $$('[data-kind]').forEach(button=>button.addEventListener('click',async()=>{
   if(state.busy||!state.team)return;
@@ -421,8 +463,13 @@ card.addEventListener('lostpointercapture',event=>{
   if(event.target===card)resetSwipe();
 });
 setInterval(async()=>{
+  if(!document.hidden && state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();return;}
   if(document.hidden||!state.team||state.busy)return;
   try {if(Date.now()-lastLeagueCheck>60000)await refreshLeague();await refreshLists(true);}catch(error){if(error.status===401)notice('Choose your team again to reconnect.');}
 },12000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.team)refreshLists(true).catch(()=>{});});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;
+  if(state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();return;}
+  if(state.team)refreshLists(true).catch(()=>{});
+});
 boot();

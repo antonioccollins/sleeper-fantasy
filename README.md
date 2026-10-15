@@ -60,6 +60,14 @@ Rankings already incorporate expert expectations about future performance and in
 
 The original migration from the retired Sleeper valuation model invalidates its pending votes while retaining saved match terms. Adding same-position swaps preserves existing roster epochs and proposal IDs. Routine ranking refreshes keep proposal IDs stable for identical terms and rosters; a deal must still pass current checks to receive a new vote. Roster, owner, or reserve changes invalidate pending terms.
 
+## Risk Taker Index
+
+The separate **Risk Taker** tab uses completed Sleeper transactions for the connected league’s season (weeks 0–18, including offseason activity). It never reads TradeBlock likes, matches, or FantasyPros rankings. `/api/risk` is a read-only endpoint for public league activity, cached separately in Netlify Blobs for 15 minutes and refreshed on demand.
+
+The score is rounded to 0–100: **40 points** for trades relative to the league’s highest trade count, **35 points** for successful FAAB bids as a fraction of the starting budget (capped at 100%), and **25 points** for roster moves relative to the league’s highest move count. Non-FAAB leagues use 60 trade points and 40 move points. Equal scores share ranks. It measures activity and spending, not trade quality or predicted wins.
+
+Each completed trade counts once per participating roster, including picks and FAAB transfers. Waiver/free-agent transactions count as one move even when they include both an add and a drop. FAAB spending sums successful waiver bids; failed bids and transferred budget do not count. Duplicate transaction IDs are deduplicated using their latest status. Incomplete history fails the refresh; an existing snapshot remains visibly marked as delayed with its original timestamp, or the tab shows an unavailable state with a retry button.
+
 ## Validation
 
 ```sh
