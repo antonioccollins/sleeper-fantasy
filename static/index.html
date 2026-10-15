@@ -28,6 +28,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/share/tradeblock-icon.png">
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
+  <script src="/rankings.js" defer></script>
 </head>
 <body class="discover-mode">
   <div class="app-shell">
@@ -38,12 +39,14 @@
     <nav class="bottom-nav" aria-label="Main navigation">
       <button class="nav-item active" data-view="discover" aria-current="page"><span data-icon="home"></span><span>Discover</span></button>
       <button class="nav-item" data-view="likes"><span data-icon="heart"></span><span>Likes</span><span id="likes-count" class="nav-count" hidden>0</span></button>
+      <button class="nav-item" data-view="rankings"><span data-icon="list"></span><span>Rankings</span><span id="rankings-count" class="nav-count" hidden>0</span></button>
       <button class="nav-item" data-view="risk"><span data-icon="flame"></span><span>Risk Taker</span></button>
       <button id="league-button" class="nav-item" aria-haspopup="dialog"><span data-icon="trophy"></span><span>League</span></button>
       <button id="profile-button" class="nav-item" aria-haspopup="dialog"><span data-icon="person"></span><span>Profile</span></button>
     </nav>
     <main>
       <header class="page-intro"><h1 id="page-title">Discover</h1><div class="page-actions collection-tabs" role="group" aria-label="Saved trades"><button class="text-button collection-tab" data-view="likes" aria-pressed="false">Likes <span id="saved-likes-count" class="nav-count" hidden>0</span></button><button class="text-button collection-tab" data-view="matches" aria-pressed="false">Matches <span id="matches-count" class="nav-count" hidden>0</span></button></div></header>
+      <button id="ranking-alert" class="ranking-alert" hidden></button>
       <div id="global-message" class="notice" hidden></div>
       <section id="discover-view" class="view">
         <div class="discovery-layout">
@@ -58,6 +61,19 @@
       </section>
       <section id="likes-view" class="view" hidden><div id="likes-list" class="trade-list"></div></section>
       <section id="matches-view" class="view" hidden><div id="matches-list" class="trade-list"></div></section>
+      <section id="rankings-view" class="view" aria-labelledby="page-title" hidden>
+        <div class="ranking-tabs" role="group" aria-label="Player rankings"><button data-ranking-pane="editor" class="selected" aria-pressed="true">My rankings</button><button data-ranking-pane="opportunities" aria-pressed="false">Opportunities <span id="opportunity-total" hidden></span></button></div>
+        <p id="ranking-status" role="status" hidden></p>
+        <div id="ranking-editor">
+          <div class="ranking-positions" role="group" aria-label="Player position"></div>
+          <div class="ranking-heading"><div><h2 id="ranking-position-title">Your top 25</h2><p id="ranking-save-state">Choose your order.</p></div><button id="ranking-save" class="primary-button" disabled>Save</button></div>
+          <p class="ranking-hint">Tap a rank to move a player.</p>
+          <ol id="ranking-list" class="ranking-list"></ol>
+          <div class="ranking-tools"><button id="ranking-add" class="text-button">Add player</button><span id="ranking-slots">0 / 25</span></div>
+          <button id="ranking-reload" class="text-button" hidden>Reload saved rankings</button>
+        </div>
+        <div id="ranking-opportunities" hidden></div>
+      </section>
       <section id="risk-view" class="view" aria-labelledby="page-title" hidden>
         <div class="risk-toolbar"><p id="risk-season">Season activity</p><button id="risk-refresh" class="settings-button" aria-label="Refresh risk index"><span data-icon="refresh"></span></button></div>
         <p id="risk-status" class="risk-status" role="status" hidden></p>
@@ -65,6 +81,7 @@
       </section>
     </main>
   </div>
+  <dialog id="ranking-picker" aria-labelledby="ranking-picker-title"><button class="dialog-close" data-close="ranking-picker" aria-label="Close">×</button><h2 id="ranking-picker-title">Add a player</h2><label class="ranking-search-label" for="ranking-search">Find a player</label><input id="ranking-search" type="search" placeholder="Search players" autocomplete="off"><div id="ranking-search-results"></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" data-close="settings-dialog" aria-label="Close">×</button><h2 id="settings-title">Trade settings</h2>
     <h3 class="menu-label">Trade type</h3><div class="filter-pills" aria-label="Trade type"><button class="selected" data-kind="all" aria-pressed="true">All trades</button><button data-kind="1-for-1" aria-pressed="false">1 for 1</button><button data-kind="1-for-2" aria-pressed="false">2 for 1</button><button data-kind="2-for-2" aria-pressed="false">2 for 2</button></div>
     <div class="menu-options"><button id="roster-button" class="menu-option"><span data-icon="cards"></span>Your roster<span data-icon="chevron"></span></button><button id="settings-league" class="menu-option"><span data-icon="trophy"></span><span id="settings-league-name">Super Bowl Bound</span><span data-icon="chevron"></span></button><button id="undo-button" class="menu-option" disabled><span data-icon="undo"></span>Undo last swipe</button><button id="settings-matches" class="menu-option"><span data-icon="matches"></span>Matches</button><button id="how-button" class="menu-option"><span data-icon="info"></span>About TradeBlock</button></div>

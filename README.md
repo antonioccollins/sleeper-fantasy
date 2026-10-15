@@ -68,6 +68,14 @@ The score is rounded to 0–100: **40 points** for trades relative to the league
 
 Each completed trade counts once per participating roster, including picks and FAAB transfers. Waiver/free-agent transactions count as one move even when they include both an add and a drop. FAAB spending sums successful waiver bids; failed bids and transferred budget do not count. Duplicate transaction IDs are deduplicated using their latest status. Incomplete history fails the refresh; an existing snapshot remains visibly marked as delayed with its original timestamp, or the tab shows an unavailable state with a retry button.
 
+## Personal player rankings
+
+The **Rankings** tab saves each manager’s ordered lists of up to 25 players at QB, RB, WR, TE, K, and DEF. Search includes unrostered NFL players. Tap a rank number to move a player, remove/add players, and explicitly save each position. The optional starting list uses available roster positional rankings followed by Sleeper search order; it is only an editable draft and never counts as a manager’s opinion until saved.
+
+Opportunities compare the saved lists of two current owners. Both players must appear in both managers’ lists at the same position, and each manager must rank the player they would receive above their own. Unlisted players are not assumed to rank below listed players. Opportunities use current roster ownership, including reserve players, and pause when the roster snapshot is over an hour old. They do not require FantasyPros availability or the trade generator’s value filter, and they never create likes or confirmed matches.
+
+Both managers get an in-app badge/banner and opportunity cards with mirrored terms and the two relevant rank comparisons. Alerts refresh while the app is open and on return; viewing the Opportunities panel marks only that manager’s alerts as read. There are no external messages or push notifications. Rankings and read state are stored separately from votes in season-scoped Netlify Blobs. Owner changes invalidate the previous owner’s preferences. Atomic saves preserve different teams/positions, and revision checks reject outdated edits from another session. Full ranking lists are returned only for the selected team, using the same open team-selection model as the rest of the app.
+
 ## Validation
 
 ```sh

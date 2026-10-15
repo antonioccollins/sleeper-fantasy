@@ -2,6 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { getStorage, leagueID, prefix, mutate } from './store.mjs';
 import { getModel } from './league.mjs';
 import { getRiskIndex } from './risk.mjs';
+import { getPersonalRankings, savePersonalRankings, getOpportunities, seeOpportunities } from './personal-rankings.mjs';
 import { RANK_MAX_AGE_MS } from './fantasypros.mjs';
 
 class APIError extends Error {
@@ -91,6 +92,10 @@ export function createHandler({storage = getStorage, loadModel = getModel, loadR
       }
       if (path === '/api/session' && method === 'DELETE') return response({ok: true}, 200, {'Set-Cookie': 'trade_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'});
       if (!team) throw new APIError(401, 'Choose your team to continue.');
+      if (path === '/api/rankings' && method === 'GET') return response(await getPersonalRankings(store, model, team));
+      if (path === '/api/rankings' && method === 'POST') return response(await savePersonalRankings(store, model, team, await body(request)));
+      if (path === '/api/rankings/opportunities' && method === 'GET') return response(await getOpportunities(store, model, team));
+      if (path === '/api/rankings/opportunities/seen' && method === 'POST') return response(await seeOpportunities(store, model, team, await body(request)));
       const ledger = await store.get(ledgerKey, {type: 'json'}) || emptyLedger(model);
       const votes = ledger.epoch === model.epoch ? ledger.votes : {};
       if (path === '/api/deck' && method === 'GET') {

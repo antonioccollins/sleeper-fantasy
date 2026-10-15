@@ -6,6 +6,7 @@ const icons = {
   home: '<path d="m3 10 9-8 9 8v11h-6v-7H9v7H3Z"/>',
   settings: '<path d="M3 7h8m4 0h6M3 17h12m4 0h2"/><circle cx="13" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>',
   trophy: '<path d="M7 3h10v7a5 5 0 0 1-10 0ZM7 5H3v3a4 4 0 0 0 4 4M17 5h4v3a4 4 0 0 1-4 4M12 15v5M8 21h8"/>',
+  list: '<path d="M9 5h12M9 12h12M9 19h12M3 5h1M3 12h1M3 19h1"/>',
   flame: '<path d="M13 2c1 6-5 6-3 11 2-1 3-3 3-5 4 3 6 6 5 9a7 7 0 0 1-13-2c0-5 5-7 8-13Z"/>',
   refresh: '<path d="M20 7v5h-5M4 17v-5h5M5.5 7a7 7 0 0 1 12-2L20 8M4 16l2.5 3a7 7 0 0 0 12-2"/>',
   person: '<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3Z"/>',
@@ -194,6 +195,7 @@ async function chooseTeam(id) {
     const data = await api('/api/session', {method:'POST',body:JSON.stringify({team_id:id})});
     state.team = data.team;
     state.generation++;
+    window.rankingFeature?.reset();
     state.announced.clear();
     state.lastVote = null;
     state.likes = [];
@@ -281,8 +283,9 @@ function renderLists() {
 async function refreshLists(announce=true) {
   if(!state.team) return;
   const generation=state.generation;
-  const [likes,matches]=await Promise.all([api('/api/likes'),api('/api/matches')]);
+  const [likes,matches,opportunities]=await Promise.all([api('/api/likes'),api('/api/matches'),announce ? api('/api/rankings/opportunities').catch(()=>null) : Promise.resolve(undefined)]);
   if(generation!==state.generation) return;
+  if(opportunities!==undefined)window.rankingFeature?.receive(opportunities,announce);
   state.likes=likes.items;
   state.matches=matches.items;
   renderLists();
@@ -369,14 +372,17 @@ function setView(view) {
   document.body.classList.toggle('discover-mode', view==='discover');
   document.body.classList.toggle('likes-mode', view==='likes');
   document.body.classList.toggle('risk-mode', view==='risk');
+  document.body.classList.toggle('rankings-mode', view==='rankings');
   document.body.classList.toggle('saved-mode', view!=='discover');
   $$('.collection-tab').forEach(el=>{
     const active=el.dataset.view===view;
     el.classList.toggle('selected',active);
     el.setAttribute('aria-pressed',String(active));
   });
-  $('#page-title').textContent={discover:'Discover',likes:'Your likes',matches:'Matches',risk:'Risk Taker Index'}[view];
+  $('#page-title').textContent={discover:'Discover',likes:'Your likes',matches:'Matches',risk:'Risk Taker Index',rankings:'Player rankings'}[view];
   if(view==='risk')loadRisk();
+  if(view==='rankings')window.rankingFeature?.load();
+  window.rankingFeature?.viewChanged();
 }
 function openRoster() {
   if(!state.team)return;
@@ -482,13 +488,13 @@ card.addEventListener('lostpointercapture',event=>{
   if(event.target===card)resetSwipe();
 });
 setInterval(async()=>{
-  if(!document.hidden && state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();return;}
+  if(!document.hidden && state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();window.rankingFeature?.poll();return;}
   if(document.hidden||!state.team||state.busy||pointer)return;
   try {if(Date.now()-lastLeagueCheck>60000)await refreshLeague();await refreshLists(true);}catch(error){if(error.status===401)notice('Choose your team again to reconnect.');}
 },12000);
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden)return;
-  if(state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();return;}
+  if(state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();window.rankingFeature?.poll();return;}
   if(state.team && !state.busy && !pointer)Promise.all([loadDeck({preserveCurrent:true}),refreshLists(true)]).catch(()=>{});
 });
 boot();

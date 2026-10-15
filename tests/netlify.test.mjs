@@ -207,3 +207,100 @@ test('incoming priority respects passes, filters, matches, and roster epochs',as
   next.model.epoch='new-rosters';
   assert.equal((await next.clients[1].request('/api/deck')).data.proposals[0].id,first);
 });
+
+test('personal rankings persist per team and season, include unrostered players, and require explicit saves',async()=>{
+  const env=await setup();const [a,b]=env.clients;
+  await env.storage.setJSON('league/1314338659381575680/players',{players:{free:{full_name:'Free Agent',position:'WR',team:'BUF',active:true},old:{full_name:'Retired',position:'WR',team:'BUF',active:false}}});
+  const initial=await a.request('/api/rankings');
+  assert.deepEqual(initial.data.lists,{});
+  assert.ok(initial.data.players.some(p=>p.id==='free'));
+  assert.ok(!initial.data.players.some(p=>p.id==='old'));
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  const saved=await a.request('/api/rankings','POST',{position:'RB',ids:['b1','a1'],revision:null});
+  assert.equal(saved.status,200);
+  a.handler=createHandler({storage:()=>env.storage,loadModel:async()=>env.model});
+  assert.deepEqual((await a.request('/api/rankings')).data.lists.RB.ids,['b1','a1']);
+  assert.deepEqual((await b.request('/api/rankings')).data.lists,{});
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  env.model.league.season='2027';
+  assert.deepEqual((await a.request('/api/rankings')).data.lists,{});
+});
+
+test('reciprocal rankings alert both managers with mirrored terms and per-manager read state, never auto-matching',async()=>{
+  const {clients:[a,b,c]}=await setup();
+  await a.request('/api/rankings','POST',{position:'RB',ids:['b1','a1'],revision:null});
+  await b.request('/api/rankings','POST',{position:'RB',ids:['a1','b1'],revision:null});
+  const one=(await a.request('/api/rankings/opportunities')).data.items;
+  const two=(await b.request('/api/rankings/opportunities')).data.items;
+  assert.equal(one.length,1);assert.equal(two.length,1);
+  assert.equal(one[0].id,two[0].id);assert.deepEqual(one[0].give,two[0].receive);
+  assert.deepEqual(one[0].your_ranks,{give:2,receive:1});assert.deepEqual(one[0].partner_ranks,{give:1,receive:2});
+  assert.equal(one[0].unread,true);assert.equal(two[0].unread,true);
+  assert.deepEqual((await c.request('/api/rankings/opportunities')).data.items,[]);
+  await a.request('/api/rankings/opportunities/seen','POST',{ids:[one[0].id]});
+  assert.equal((await a.request('/api/rankings/opportunities')).data.items[0].unread,false);
+  assert.equal((await b.request('/api/rankings/opportunities')).data.items[0].unread,true);
+  for(const client of [a,b]) {
+    assert.deepEqual((await client.request('/api/matches')).data.items,[]);
+    assert.deepEqual((await client.request('/api/likes')).data.items,[]);
+  }
+});
+
+test('omitted players and identical preferences do not imply trades; saved changes remove old opportunities',async()=>{
+  const {clients:[a,b]}=await setup();
+  await a.request('/api/rankings','POST',{position:'RB',ids:['b1','a1'],revision:null});
+  let saved=await b.request('/api/rankings','POST',{position:'RB',ids:['a1'],revision:null});
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  saved=await b.request('/api/rankings','POST',{position:'RB',ids:['b1','a1'],revision:saved.data.list.revision});
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  saved=await b.request('/api/rankings','POST',{position:'RB',ids:['a1','b1'],revision:saved.data.list.revision});
+  assert.equal((await a.request('/api/rankings/opportunities')).data.items.length,1);
+  await b.request('/api/rankings','POST',{position:'RB',ids:[],revision:saved.data.list.revision});
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+});
+
+test('opportunities require current unique ownership and current owners but not FantasyPros availability',async()=>{
+  const env=await setup();const [a,b]=env.clients;
+  await a.request('/api/rankings','POST',{position:'RB',ids:['b1','a1'],revision:null});
+  await b.request('/api/rankings','POST',{position:'RB',ids:['a1','b1'],revision:null});
+  env.model.recommendations={status:'unavailable'};
+  assert.equal((await a.request('/api/rankings/opportunities')).data.items.length,1);
+  env.model.teams[1].players=env.model.teams[1].players.filter(id=>id!=='b1');
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  env.model.teams[1].players.push('b1');env.model.teams[2].players.push('b1');
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  env.model.teams[2].players.pop();
+  env.model.updated_at=new Date(Date.now()-7200000).toISOString();
+  const old=(await a.request('/api/rankings/opportunities')).data;
+  assert.equal(old.stale,true);assert.deepEqual(old.items,[]);
+  env.model.updated_at=new Date().toISOString();env.model.teams[1].owner_id='new-owner';
+  assert.deepEqual((await a.request('/api/rankings/opportunities')).data.items,[]);
+  assert.deepEqual((await b.request('/api/rankings')).data.lists,{});
+});
+
+test('rankings reject invalid entries and prevent concurrent overwrite without losing other positions or teams',async()=>{
+  const env=await setup();const [a,b]=env.clients;
+  const stranger=new Client(env.handler);
+  assert.equal((await stranger.request('/api/rankings')).status,401);
+  for(const input of [
+    {position:'RB',ids:['a1','a1'],revision:null},
+    {position:'WR',ids:['a1'],revision:null},
+    {position:'RB',ids:['unknown'],revision:null},
+    {position:'ALL',ids:[],revision:null},
+    {position:'RB',ids:Array.from({length:26},(_,i)=>String(i)),revision:null},
+    {position:'RB',ids:['a1']},
+  ])assert.equal((await a.request('/api/rankings','POST',input)).status,400);
+  env.model.players.q={id:'q',name:'QB',position:'QB',nfl_team:'BUF'};
+  const results=await Promise.all([
+    a.request('/api/rankings','POST',{position:'RB',ids:['b1','a1'],revision:null}),
+    a.request('/api/rankings','POST',{position:'QB',ids:['q'],revision:null}),
+    b.request('/api/rankings','POST',{position:'RB',ids:['a1','b1'],revision:null}),
+  ]);
+  assert.ok(results.every(r=>r.status===200));
+  const stored=(await a.request('/api/rankings')).data.lists;
+  assert.deepEqual(stored.QB.ids,['q']);assert.deepEqual(stored.RB.ids,['b1','a1']);
+  assert.deepEqual((await b.request('/api/rankings')).data.lists.RB.ids,['a1','b1']);
+  assert.equal((await a.request('/api/rankings','POST',{position:'RB',ids:['a1'],revision:null})).status,409);
+  assert.deepEqual((await a.request('/api/rankings')).data.lists.RB.ids,['b1','a1']);
+  assert.equal((await a.request('/api/rankings','POST',{position:'RB',ids:['a1'],revision:stored.RB.revision},{origin:'https://other.test'})).status,403);
+});

@@ -538,3 +538,66 @@ body.risk-mode main { max-width: 520px; padding: 12px 22px calc(100px + env(safe
   .risk-team { padding: 12px; }
   .risk-team-top { gap: 8px; }
 }
+
+/* Personal player rankings and preference-based trade opportunities. */
+body.rankings-mode main { max-width: 520px; padding: 12px 22px calc(100px + env(safe-area-inset-bottom)); }
+.rankings-mode .collection-tabs, .rankings-mode #global-message, .rankings-mode #settings-button { display: none; }
+.ranking-alert { display: block; width: 100%; max-width: 476px; margin: 0 auto 18px; padding: 13px 15px; border: 1px solid #6d478e; border-radius: 14px; background: #2c1c3f; color: #e5cafa; text-align: left; font-size: 12px; line-height: 1.5; }
+.ranking-tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid #34283e; border-radius: 16px; background: #15111c; margin-bottom: 22px; }
+.ranking-tabs button { flex: 1; min-height: 40px; border-radius: 12px; background: none; color: #a496b2; font-size: 12px; }
+.ranking-tabs button.selected { background: #382448; color: #eacfff; }
+#opportunity-total { margin-left: 4px; padding: 2px 5px; border-radius: 9px; background: #664082; color: #f1ddff; font-size: 10px; }
+.ranking-positions { display: flex; gap: 5px; margin-bottom: 24px; }
+.ranking-positions button { flex: 1; min-width: 0; min-height: 42px; border: 1px solid #39303f; border-radius: 12px; background: #16121d; color: #b3a4c1; font-size: 12px; }
+.ranking-positions button.selected { border-color: #a06dd0; background: #3c2454; color: #f0dcff; }
+.ranking-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ranking-heading h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.4px; }
+#ranking-save-state { margin: 6px 0 0; color: #b7a6c6; font-size: 11px; }
+#ranking-save { min-height: 42px; min-width: 70px; padding: 10px 16px; border: 1px solid #c395e3; border-radius: 13px; background: linear-gradient(115deg,#81569e,#e0bbfc 46%,#ad7bcc 70%,#d2abea); color: #21122e; font-weight: 600; font-size: 12px; }
+.ranking-hint { margin: 15px 0; color: #aaa0b3; font-size: 11px; line-height: 1.6; }
+#ranking-status { padding: 12px; border: 1px solid #59416b; border-radius: 12px; background: #201729; color: #dfc6f1; font-size: 12px; line-height: 1.5; }
+.ranking-list { list-style: none; padding: 0; margin: 0; border: 1px solid #302638; border-radius: 18px; overflow: hidden; background: #141019; }
+.ranking-row { display: flex; align-items: center; gap: 7px; padding: 8px; border-bottom: 1px solid #ffffff0b; }
+.ranking-row:last-child { border-bottom: 0; }
+.ranking-order { width: 44px; height: 44px; flex-shrink: 0; padding: 0 3px; border: 1px solid #52405f; border-radius: 11px; background: #251b30; color: #dfc0f4; text-align: center; font: inherit; font-size: 14px; }
+.ranking-row .player, .ranking-search-row .player { display: flex; flex: 1; min-width: 0; min-height: 52px; gap: 9px; padding: 0; border: 0; }
+.ranking-row .player-headshot, .ranking-search-row .player-headshot { width: 38px; height: 38px; flex-shrink: 0; }
+.ranking-row .nfl-logo, .ranking-search-row .nfl-logo { display: none; }
+.ranking-row .player-info strong, .ranking-search-row .player-info strong { font-size: 13px; line-height: 1.3; }
+.ranking-row .player-info small, .ranking-search-row .player-info small { font-size: 10px; flex-wrap: wrap; gap: 4px; }
+.ranking-row .injury-tag, .ranking-search-row .injury-tag { font-size: 9px; padding: 2px 4px; }
+.ranking-remove { display: grid; place-items: center; width: 36px; height: 44px; flex-shrink: 0; border-radius: 10px; background: none; color: #9e8baa; }
+.ranking-remove svg { width: 15px; height: 15px; }
+.ranking-empty { padding: 30px 20px; text-align: center; }
+.ranking-empty > svg { margin: 0 auto 20px; color: #bc88e9; width: 35px; height: 35px; }
+.ranking-empty h3 { margin: 0; font-size: 18px; font-weight: 550; }
+.ranking-empty p { color: #aaa0b3; font-size: 12px; line-height: 1.5; }
+.ranking-empty button { margin: 12px auto 0; }
+.ranking-tools { display: flex; align-items: center; justify-content: space-between; margin: 14px 0; }
+.ranking-tools > span { color: #a898b6; font-size: 12px; }
+#rankings-view .text-button { min-height: 44px; padding: 10px 15px; border: 1px solid #6e498a; border-radius: 12px; background: #2b1b3b; color: #dfc0f6; font-size: 12px; }
+.ranking-search-label { display: block; margin: 20px 0 8px; color: #bca8cc; font-size: 12px; }
+#ranking-search { width: 100%; height: 46px; padding: 10px 14px; border: 1px solid #6c4d82; border-radius: 12px; background: #19121f; color: #f2e5fc; font: inherit; font-size: 16px; }
+#ranking-search-results { max-height: 50dvh; overflow-y: auto; margin-top: 12px; }
+.ranking-search-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 66px; padding: 8px 4px; text-align: left; border-bottom: 1px solid #ffffff0d; background: none; }
+.ranking-search-row > span { color: #d3a4f4; font-size: 18px; }
+.ranking-search-row:disabled { opacity: .45; }
+.ranking-search-row:disabled > span { font-size: 11px; }
+.ranking-opportunity { padding: 15px 12px; margin-bottom: 16px; border: 1px solid #483153; border-radius: 21px; background: #15101c; }
+.ranking-opportunity > header { display: flex; align-items: center; gap: 11px; padding: 0 2px 16px; }
+.ranking-opportunity .team-avatar { width: 36px; height: 36px; background: #3a234c; color: #e3c2fa; }
+.ranking-opportunity h3 { margin: 0; font-size: 14px; font-weight: 550; }
+.ranking-opportunity > header > div > span { display: block; margin-top: 5px; color: #b09bc1; font-size: 10px; }
+.ranking-preferences { padding: 0 3px; }
+.ranking-preferences p { margin: 15px 0 0; }
+.ranking-preferences p > span { display: block; color: #a58cb8; font-size: 10px; margin-bottom: 5px; }
+.ranking-preferences strong { color: #e5d3f3; font-size: 12px; font-weight: 500; line-height: 1.6; }
+.ranking-preferences strong > span { color: #af95c3; font-weight: 400; }
+@media (max-width: 360px) {
+  body.rankings-mode main { padding-left: 14px; padding-right: 14px; }
+  .bottom-nav { padding-left: 5px; padding-right: 5px; }
+  .ranking-row { gap: 5px; padding: 7px; }
+  .ranking-row .player-headshot { width: 32px; height: 32px; }
+  .ranking-row .player-info strong { font-size: 12px; }
+  .ranking-remove { width: 28px; }
+}
