@@ -169,3 +169,41 @@ test('trade engine generates stable, unique, owned, balanced proposals across sh
   assert.notEqual(m.epoch,changed.epoch);
   assert.ok(!changed.proposals.some(p=>m.proposals.some(old=>old.id===p.id)));
 });
+
+test('incoming likes lead the deck, preserve exact terms, and withdrawn likes lose priority',async()=>{
+  const env=await setup();const [a,b,c]=env.clients;
+  const first='1'.repeat(24), liked='2'.repeat(24), third='3'.repeat(24);
+  env.model.proposals.push({...structuredClone(env.model.proposals[0]),id:third,a:2,b:3,give_a:['b1'],give_b:['c1'],drops:{2:[],3:[]},starter_gain:{2:1,3:1}});
+  const ids=async()=> (await b.request('/api/deck')).data.proposals.map(p=>p.id);
+  assert.deepEqual(await ids(),[first,third,liked]);
+  await a.vote(liked);
+  const received=(await b.request('/api/deck')).data.proposals;
+  assert.equal(received[0].id,liked);
+  const sent=(await a.request('/api/likes')).data.items[0];
+  assert.deepEqual(received[0].give,sent.receive);assert.deepEqual(received[0].receive,sent.give);
+  assert.deepEqual((await b.request('/api/likes')).data.items,[]);
+  assert.equal(new Set(received.map(p=>p.id)).size,received.length);
+  await c.vote(third);
+  assert.deepEqual(new Set((await ids()).slice(0,2)),new Set([liked,third]));
+  await a.request('/api/votes/'+liked,'DELETE');
+  assert.deepEqual(await ids(),[third,first,liked]);
+  await c.request('/api/votes/'+third,'DELETE');
+  assert.deepEqual(await ids(),[first,third,liked]);
+});
+
+test('incoming priority respects passes, filters, matches, and roster epochs',async()=>{
+  const env=await setup();const [a,b]=env.clients;
+  const first='1'.repeat(24),liked='2'.repeat(24);
+  await a.vote(liked);
+  assert.equal((await b.request('/api/deck')).data.proposals[0].id,liked);
+  assert.deepEqual((await b.request('/api/deck?kind=2-for-2')).data.proposals,[]);
+  await b.vote(liked,'pass');
+  assert.deepEqual((await b.request('/api/deck')).data.proposals.map(p=>p.id),[first]);
+  await b.request('/api/votes/'+liked,'DELETE');
+  assert.equal((await b.vote(liked)).data.matched,true);
+  assert.deepEqual((await b.request('/api/deck')).data.proposals.map(p=>p.id),[first]);
+  const next=await setup();
+  await next.clients[0].vote(liked);
+  next.model.epoch='new-rosters';
+  assert.equal((await next.clients[1].request('/api/deck')).data.proposals[0].id,first);
+});

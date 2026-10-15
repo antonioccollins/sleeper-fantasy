@@ -106,6 +106,10 @@ export function createHandler({storage = getStorage, loadModel = getModel, loadR
         while ([...buckets.values()].some(bucket => bucket.length)) {
           for (const key of keys) if (buckets.get(key).length) ordered.push(buckets.get(key).shift());
         }
+        // Keep the team rotation within each group, but show exact offers the
+        // other manager already likes before suggestions without an incoming like.
+        const incoming = p => votes[p.id]?.[p.a === team.id ? p.b : p.a]?.decision === 'like';
+        ordered.sort((a, b) => Number(incoming(b)) - Number(incoming(a)));
         return response({proposals: stale(model) ? [] : ordered.map(p => decorate(p, team, model)), stale: stale(model), recommendations: model.recommendations});
       }
       const modify = change => mutate(store, ledgerKey, () => emptyLedger(model), value => {

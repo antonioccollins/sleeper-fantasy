@@ -38,7 +38,7 @@ The app uses Node Functions and no Edge Functions. In cloud development environm
 
 - The API reads real Sleeper league settings, teams, rosters, and player metadata. [FantasyPros](https://api.fantasypros.com/public/v2/docs) provides NFL rest-of-season expert consensus rankings for the Sleeper league season and standard, half-PPR, or PPR format.
 - A scheduled Netlify Function refreshes production league data roughly every 15 minutes. Visits also refresh a missing/old snapshot, including in deploy previews where scheduled functions don't run. The large player directory is cached for 24 hours.
-- Likes stay private until both managers like identical terms. They see the same proposal ID, with give/get reversed for their own team.
+- Likes stay private until both managers like identical terms. They see the same proposal ID, with give/get reversed for their own team. Eligible offers already liked by the other manager lead the deck; ordinary suggestions still rotate across teams. Returning to the app and minute-by-minute activity checks refresh that order while keeping the current card in place. Existing passes, trade-type filters, and completed matches are respected.
 - Strongly consistent storage and ETag conditional updates prevent lost votes and duplicate matches across simultaneous Function instances. A league refresh lease limits duplicate API fetching.
 - Undo and withdraw work before a match. Matched terms and per-manager alert acknowledgments persist. Historical matches retain their original players even when those players leave the roster.
 - Roster/owner changes generate new proposal IDs so old likes cannot match stale trades. Votes pause when the source snapshot is more than an hour old.

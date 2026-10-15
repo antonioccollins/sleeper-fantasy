@@ -161,11 +161,17 @@ function renderTeam() {
   $('#my-manager').textContent = `${state.team.manager} · ${state.team.wins}–${state.team.losses}`;
   $('#team-switch').title = state.team.name;
 }
-async function loadDeck() {
+async function loadDeck({preserveCurrent=false}={}) {
   const generation = state.generation;
   const kind = state.kind;
+  const currentID = state.deck[0]?.id;
   const data = await api(`/api/deck?kind=${encodeURIComponent(kind)}`);
   if (generation !== state.generation || kind !== state.kind) return;
+  // Background updates can reorder the queue, but never interrupt a gesture or
+  // reinsert a card that was voted on while the request was in flight.
+  if(preserveCurrent && (state.busy || pointer || state.deck[0]?.id!==currentID))return;
+  const current = preserveCurrent && data.proposals.find(p=>p.id===currentID);
+  if(current)data.proposals=[current,...data.proposals.filter(p=>p.id!==currentID)];
   state.deck = data.proposals;
   state.boot.stale = data.stale;
   state.boot.recommendations = data.recommendations;
@@ -288,7 +294,7 @@ async function refreshLists(announce=true) {
 async function refreshLeague() {
   const generation=state.generation;
   const data=await api('/api/bootstrap');
-  if(generation!==state.generation)return;
+  if(generation!==state.generation || state.busy || pointer)return;
   const changed=state.boot.epoch!==data.epoch;
   const recommendationsChanged=state.boot.stale!==data.stale || state.boot.recommendations?.fetched_at!==data.recommendations?.fetched_at;
   state.boot=data;
@@ -298,8 +304,8 @@ async function refreshLeague() {
   renderTeam();
   updateMethod(data);
   notice(dataNotice(data));
-  if(changed || recommendationsChanged){state.lastVote=null;await loadDeck();}
-  else renderCard();
+  if(changed || recommendationsChanged)state.lastVote=null;
+  await loadDeck({preserveCurrent:true});
 }
 async function showMatch(match) {
   state.announced.add(match.id);
@@ -477,12 +483,12 @@ card.addEventListener('lostpointercapture',event=>{
 });
 setInterval(async()=>{
   if(!document.hidden && state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();return;}
-  if(document.hidden||!state.team||state.busy)return;
+  if(document.hidden||!state.team||state.busy||pointer)return;
   try {if(Date.now()-lastLeagueCheck>60000)await refreshLeague();await refreshLists(true);}catch(error){if(error.status===401)notice('Choose your team again to reconnect.');}
 },12000);
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden)return;
   if(state.view==='risk'){if(Date.now()-state.riskLoaded>900000)loadRisk();return;}
-  if(state.team)refreshLists(true).catch(()=>{});
+  if(state.team && !state.busy && !pointer)Promise.all([loadDeck({preserveCurrent:true}),refreshLists(true)]).catch(()=>{});
 });
 boot();
