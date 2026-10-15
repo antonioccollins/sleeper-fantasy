@@ -585,9 +585,12 @@ body.rankings-mode main { max-width: 520px; padding: 12px 22px calc(100px + env(
 .ranking-tools { display: flex; align-items: center; justify-content: space-between; margin: 14px 0; }
 .ranking-tools > span { color: #a898b6; font-size: 12px; }
 #rankings-view .text-button { min-height: 44px; padding: 10px 15px; border: 1px solid #6e498a; border-radius: 12px; background: #2b1b3b; color: #dfc0f6; font-size: 12px; }
+#ranking-picker { max-height: 88dvh; overflow: hidden; }
+#ranking-picker[open] { display: flex; flex-direction: column; }
+#ranking-picker h2, #ranking-picker label, #ranking-search { flex-shrink: 0; }
 .ranking-search-label { display: block; margin: 20px 0 8px; color: #bca8cc; font-size: 12px; }
 #ranking-search { width: 100%; height: 46px; padding: 10px 14px; border: 1px solid #6c4d82; border-radius: 12px; background: #19121f; color: #f2e5fc; font: inherit; font-size: 16px; }
-#ranking-search-results { max-height: 50dvh; overflow-y: auto; margin-top: 12px; }
+#ranking-search-results { min-height: 0; max-height: 50dvh; overflow-y: auto; margin-top: 12px; }
 .ranking-search-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 66px; padding: 8px 4px; text-align: left; border-bottom: 1px solid #ffffff0d; background: none; }
 .ranking-search-row > span { color: #d3a4f4; font-size: 18px; }
 .ranking-search-row:disabled { opacity: .45; }

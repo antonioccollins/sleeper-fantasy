@@ -44,8 +44,11 @@ window.rankingFeature = (() => {
   }
   function renderPicker() {
     const query=$('#ranking-search').value.trim().toLocaleLowerCase();
-    const available=data.players.filter(p=>p.position===position && `${p.name} ${p.nfl_team}`.toLocaleLowerCase().includes(query));
-    $('#ranking-search-results').innerHTML=available.slice(0,80).map(p=>`<button class="ranking-search-row" data-ranking-add="${escape(p.id)}" ${draft().includes(p.id)||draft().length>=data.limit?'disabled':''}>${playerRow(p)}<span>${draft().includes(p.id)?'Added':'+'}</span></button>`).join('') || '<p class="ranking-hint">No players found.</p>';
+    const selected=new Set(draft());
+    // The catalogue is already ordered by suggested rank. Keep that order while
+    // excluding players in this draft, including players added before saving.
+    const available=data.players.filter(p=>p.position===position && !selected.has(p.id) && `${p.name} ${p.nfl_team}`.toLocaleLowerCase().includes(query));
+    $('#ranking-search-results').innerHTML=available.slice(0,80).map(p=>`<button class="ranking-search-row" data-ranking-add="${escape(p.id)}" ${draft().length>=data.limit?'disabled':''}>${playerRow(p)}<span aria-hidden="true">+</span></button>`).join('') || '<p class="ranking-hint">No players found.</p>';
     $$('[data-ranking-add]').forEach(button=>button.addEventListener('click',()=>{
       if(draft().length>=data.limit || draft().includes(button.dataset.rankingAdd))return;
       draft().push(button.dataset.rankingAdd);renderEditor();renderPicker();
@@ -228,8 +231,8 @@ window.rankingFeature = (() => {
     } catch(error){if(generation===state.generation){status(error.message);if(error.status===409)$('#ranking-reload').hidden=false;}}
     finally{if(generation===state.generation){saving=false;renderEditor();}}
   });
-  $('#ranking-add').addEventListener('click',()=>{if(!data || saving)return;$('#ranking-picker-title').textContent=`Add ${position==='DEF'?'a defense':'a '+position}`;$('#ranking-search').value='';renderPicker();$('#ranking-picker').showModal();$('#ranking-search').focus();});
-  $('#ranking-search').addEventListener('input',renderPicker);
+  $('#ranking-add').addEventListener('click',()=>{if(!data || saving)return;$('#ranking-picker-title').textContent=`Add ${position==='DEF'?'a defense':'a '+position}`;$('#ranking-search').value='';renderPicker();$('#ranking-picker').showModal();$('#ranking-search-results').scrollTop=0;});
+  $('#ranking-search').addEventListener('input',()=>{renderPicker();$('#ranking-search-results').scrollTop=0;});
   $('#ranking-reload').addEventListener('click',()=>load(true));
   $$('[data-ranking-pane]').forEach(button=>button.addEventListener('click',()=>showPane(button.dataset.rankingPane)));
   $('#ranking-alert').addEventListener('click',()=>{setView('rankings');showPane('opportunities');});
