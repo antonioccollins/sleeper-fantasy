@@ -560,7 +560,10 @@ body.rankings-mode main { max-width: 520px; padding: 12px 22px calc(100px + env(
 .ranking-row { display: flex; align-items: center; gap: 7px; padding: 8px; border-bottom: 1px solid #ffffff0b; }
 .ranking-row:last-child { border-bottom: 0; }
 .ranking-row .player { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.ranking-row img { -webkit-touch-callout: none; }
+.ranking-row img { -webkit-touch-callout: none; -webkit-user-drag: none; }
+.ranking-grip { display: grid; place-items: center; width: 28px; height: 44px; flex-shrink: 0; touch-action: none; cursor: grab; color: #b49ac7; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ranking-grip svg { width: 16px; height: 20px; }
+.ranking-dragging .ranking-grip { cursor: grabbing; }
 .ranking-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
 .ranking-drag-placeholder { opacity: .18; background: #593572; }
 .ranking-drag-ghost { position: fixed; top: 0; z-index: 20; margin: 0; border: 1px solid #b47ee0; border-radius: 14px; background: #2d1e3c; box-shadow: 0 10px 28px #0008, inset 0 1px #e4bbff26; pointer-events: none; will-change: transform; }

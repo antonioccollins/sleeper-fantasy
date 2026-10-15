@@ -32,7 +32,7 @@ window.rankingFeature = (() => {
     $('#ranking-save').disabled=saving || !dirty();
     $('#ranking-add').disabled=saving || ids.length>=25;
     $('#ranking-slots').textContent=`${ids.length} / 25`;
-    $('#ranking-list').innerHTML=ids.length ? ids.map((id,i)=>`<li class="ranking-row" data-ranking-player="${escape(id)}"><select class="ranking-order" data-ranking-move="${i}" aria-label="Rank ${escape(player(id).name)}" ${saving?'disabled':''}>${ids.map((_,j)=>`<option value="${j}" ${i===j?'selected':''}>${j+1}</option>`).join('')}</select>${playerRow(player(id))}<button class="ranking-remove" data-ranking-remove="${i}" aria-label="Remove ${escape(player(id).name)}" ${saving?'disabled':''}>${icon('x')}</button></li>`).join('') : `<li class="ranking-empty">${icon('list')}<h3>Who’s in your top 25?</h3><p>Add players in your order, or edit a starting list.</p><button id="ranking-start" class="text-button" ${saving?'disabled':''}>Use a starting list</button></li>`;
+    $('#ranking-list').innerHTML=ids.length ? ids.map((id,i)=>`<li class="ranking-row" data-ranking-player="${escape(id)}"><select class="ranking-order" data-ranking-move="${i}" aria-label="Rank ${escape(player(id).name)}" ${saving?'disabled':''}>${ids.map((_,j)=>`<option value="${j}" ${i===j?'selected':''}>${j+1}</option>`).join('')}</select>${playerRow(player(id))}<span class="ranking-grip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" stroke-width="3"/></svg></span><button class="ranking-remove" data-ranking-remove="${i}" aria-label="Remove ${escape(player(id).name)}" ${saving?'disabled':''}>${icon('x')}</button></li>`).join('') : `<li class="ranking-empty">${icon('list')}<h3>Who’s in your top 25?</h3><p>Add players in your order, or edit a starting list.</p><button id="ranking-start" class="text-button" ${saving?'disabled':''}>Use a starting list</button></li>`;
     $$('[data-ranking-position]').forEach(button=>button.addEventListener('click',()=>{position=button.dataset.rankingPosition;status();$('#ranking-reload').hidden=true;renderEditor();}));
     $$('[data-ranking-move]').forEach(select=>select.addEventListener('change',()=>{
       const from=Number(select.dataset.rankingMove),to=Number(select.value),ids=draft();
@@ -59,9 +59,10 @@ window.rankingFeature = (() => {
     drag=null;
     clearTimeout(current.timer);cancelAnimationFrame(current.frame);
     if(current.active && commit && current.generation===state.generation && current.position===position) {
-      drafts[position]=[...$('#ranking-list').querySelectorAll('.ranking-row')].map(row=>row.dataset.rankingPlayer);
+      drafts[position]=current.order.map(row=>row.dataset.rankingPlayer);
     }
     current.ghost?.remove();current.row.classList.remove('ranking-drag-placeholder');
+    current.rows?.forEach(row=>row.style.removeProperty('transform'));
     document.body.classList.remove('ranking-dragging');
     if(current.pointerID!==undefined && $('#ranking-list').hasPointerCapture(current.pointerID))$('#ranking-list').releasePointerCapture(current.pointerID);
     if(current.active && render)renderEditor();
@@ -74,20 +75,30 @@ window.rankingFeature = (() => {
     const speed=current.y<70 ? -Math.min(14,(70-current.y)*.22) : current.y>bottom-65 ? Math.min(14,(current.y-bottom+65)*.22) : 0;
     if(speed)window.scrollBy(0,speed*elapsed/16.67);
     current.ghost.style.transform=`translate3d(0,${current.y-current.offset}px,0)`;
-    const others=[...$('#ranking-list').querySelectorAll('.ranking-row')].filter(row=>row!==current.row);
-    const center=current.y-current.offset+current.height/2;
-    const before=others.find(row=>{const box=row.getBoundingClientRect();return center<box.top+box.height/2;});
-    if(current.row.nextElementSibling!==(before || null)) {
-      $('#ranking-list').insertBefore(current.row,before || null);
-      [...$('#ranking-list').children].forEach((row,i)=>{row.querySelector('select').value=String(i);});
-    }
-    current.ghost.querySelector('select').value=current.row.querySelector('select').value;
+    // Keep the touched DOM node mounted until release. Reparenting it during
+    // a gesture can make Safari cancel touch events, even when scrolling is blocked.
+    const others=current.rows.filter(row=>row!==current.row);
+    const center=current.y-current.offset+current.height/2+scrollY;
+    const index=others.filter(row=>{const box=current.boxes.get(row);return center>box.top+box.height/2;}).length;
+    current.order=[...others.slice(0,index),current.row,...others.slice(index)];
+    let top=current.top;
+    current.order.forEach((row,i)=>{
+      const box=current.boxes.get(row);
+      row.style.transform=`translateY(${top-box.top}px)`;
+      row.querySelector('select').value=String(i);
+      top+=box.height;
+    });
+    current.ghost.querySelector('select').value=String(index);
     current.frame=requestAnimationFrame(dragFrame);
   }
   function activateDrag() {
     if(!drag || saving || state.view!=='rankings' || pane!=='editor')return finishDrag(false);
     const box=drag.row.getBoundingClientRect();
     drag.active=true;drag.offset=drag.y-box.top;drag.height=box.height;
+    drag.rows=[...$('#ranking-list').querySelectorAll('.ranking-row')];
+    drag.order=[...drag.rows];
+    drag.boxes=new Map(drag.rows.map(row=>{const rect=row.getBoundingClientRect();return [row,{top:rect.top+scrollY,height:rect.height}];}));
+    drag.top=drag.boxes.get(drag.rows[0]).top;
     const ghost=drag.row.cloneNode(true);
     ghost.removeAttribute('data-ranking-player');
     ghost.querySelectorAll('[data-ranking-move],[data-ranking-remove]').forEach(el=>{el.removeAttribute('data-ranking-move');el.removeAttribute('data-ranking-remove');});
@@ -104,21 +115,20 @@ window.rankingFeature = (() => {
     const row=target.closest('#ranking-list .ranking-row');
     if(!row)return;
     drag={row,x,y,startX:x,startY:y,position,generation:state.generation,...ids};
-    drag.timer=setTimeout(activateDrag,ids.touchID!==undefined?280:180);
+    drag.timer=setTimeout(activateDrag,ids.touchID!==undefined?240:180);
   }
   // A quick touch movement keeps native scrolling. Only a held row claims the
   // gesture, via a non-passive touchmove listener (including on iOS Safari).
   $('#ranking-list').addEventListener('touchstart',event=>{
     if(event.touches.length!==1)return finishDrag(false);
-    if(!event.cancelable)return;
     const touch=event.touches[0];prepareDrag(event.target,touch.clientX,touch.clientY,{touchID:touch.identifier});
-  },{passive:true});
+  },{passive:false});
   document.addEventListener('touchstart',event=>{if(drag && event.touches.length!==1)finishDrag(false);},{passive:true});
   document.addEventListener('touchmove',event=>{
     if(!drag || drag.touchID===undefined)return;
     const touch=[...event.touches].find(t=>t.identifier===drag.touchID);
     if(!touch || event.touches.length!==1)return finishDrag(false);
-    if(!drag.active && Math.hypot(touch.clientX-drag.startX,touch.clientY-drag.startY)>8)return finishDrag(false);
+    if(!drag.active && Math.hypot(touch.clientX-drag.startX,touch.clientY-drag.startY)>12)return finishDrag(false);
     if(drag.active){if(!event.cancelable)return finishDrag(false);event.preventDefault();}
     drag.x=touch.clientX;drag.y=touch.clientY;
   },{passive:false});
@@ -129,8 +139,10 @@ window.rankingFeature = (() => {
   },{passive:false});
   document.addEventListener('touchcancel',()=>finishDrag(false),{passive:true});
   $('#ranking-list').addEventListener('pointerdown',event=>{
-    if(event.pointerType==='touch' || !event.isPrimary || event.button!==0)return;
+    const handle=event.target.closest('.ranking-grip');
+    if((event.pointerType==='touch' && !handle) || !event.isPrimary || event.button!==0)return;
     prepareDrag(event.target,event.clientX,event.clientY,{pointerID:event.pointerId});
+    if(handle && drag){event.preventDefault();clearTimeout(drag.timer);activateDrag();}
   });
   document.addEventListener('pointermove',event=>{
     if(!drag || event.pointerId!==drag.pointerID)return;
@@ -143,6 +155,7 @@ window.rankingFeature = (() => {
   $('#ranking-list').addEventListener('contextmenu',event=>{if(event.target.closest('.ranking-row'))event.preventDefault();});
   document.addEventListener('keydown',event=>{if(drag && event.key==='Escape'){event.preventDefault();finishDrag(false);}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)finishDrag(false);});
+  window.addEventListener('blur',()=>finishDrag(false));
   function renderOpportunities() {
     const element=$('#ranking-opportunities');
     if(!opportunities){element.innerHTML=empty('Loading opportunities…','','swap');return;}
