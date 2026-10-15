@@ -559,6 +559,12 @@ body.rankings-mode main { max-width: 520px; padding: 12px 22px calc(100px + env(
 .ranking-list { list-style: none; padding: 0; margin: 0; border: 1px solid #302638; border-radius: 18px; overflow: hidden; background: #141019; }
 .ranking-row { display: flex; align-items: center; gap: 7px; padding: 8px; border-bottom: 1px solid #ffffff0b; }
 .ranking-row:last-child { border-bottom: 0; }
+.ranking-row .player { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.ranking-row img { -webkit-touch-callout: none; }
+.ranking-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+.ranking-drag-placeholder { opacity: .18; background: #593572; }
+.ranking-drag-ghost { position: fixed; top: 0; z-index: 20; margin: 0; border: 1px solid #b47ee0; border-radius: 14px; background: #2d1e3c; box-shadow: 0 10px 28px #0008, inset 0 1px #e4bbff26; pointer-events: none; will-change: transform; }
+.ranking-drag-ghost .player { cursor: grabbing; }
 .ranking-order { width: 44px; height: 44px; flex-shrink: 0; padding: 0 3px; border: 1px solid #52405f; border-radius: 11px; background: #251b30; color: #dfc0f4; text-align: center; font: inherit; font-size: 14px; }
 .ranking-row .player, .ranking-search-row .player { display: flex; flex: 1; min-width: 0; min-height: 52px; gap: 9px; padding: 0; border: 0; }
 .ranking-row .player-headshot, .ranking-search-row .player-headshot { width: 38px; height: 38px; flex-shrink: 0; }
